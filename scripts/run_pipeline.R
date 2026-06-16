@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
 source("R/assertions.R")
 source("R/build_inputs.R")
 source("R/scorecard.R")
+source("R/forward_table.R")
 
 input_dir <- Sys.getenv("DEFICIT_SCORECARD_INPUT_DIR", "data-raw")
 output_dir <- Sys.getenv("DEFICIT_SCORECARD_OUTPUT_DIR", "output")
@@ -45,4 +46,13 @@ scorecard <- write_scorecard_outputs(score$data, output_dir)
 plot_scatter(score$data, output_dir)
 plot_distribution(score$data, output_dir)
 
+forward_c_value <- as.numeric(Sys.getenv("DEFICIT_SCORECARD_FORWARD_C", "0.19"))
+if (is.na(forward_c_value) || forward_c_value <= 0) {
+  abort("DEFICIT_SCORECARD_FORWARD_C must be a positive number")
+}
+forward <- build_forward_table_data(input_dir, c_value = forward_c_value)
+saveRDS(forward, file.path(processed_dir, "forward_table.rds"))
+forward_rows <- write_forward_table_outputs(forward, output_dir)
+
 cat(sprintf("Wrote %s scorecard rows to %s\n", nrow(scorecard), file.path(output_dir, "scorecard_unified.csv")))
+cat(sprintf("Wrote %s forward table rows to %s with c = %.2f\n", nrow(forward_rows), file.path(output_dir, "forward_deficit_reduction_table.csv"), forward_c_value))

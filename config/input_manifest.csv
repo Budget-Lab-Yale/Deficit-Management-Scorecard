@@ -2,7 +2,7 @@ source_path,dest_path,description
 raw/cbo/stata_import_file_2026_new.xlsx,cbo/stata_import_file_2026_new.xlsx,Main CBO report revision workbook
 raw/cbo/stata_import_file_2026_techcustomdutiesinleg.xlsx,cbo/stata_import_file_2026_techcustomdutiesinleg.xlsx,Alternative 2025b tariff-treatment workbook
 raw/cbo/51134-2026-02-Historical-Budget-Data.xlsx,cbo/51134-2026-02-Historical-Budget-Data.xlsx,CBO historical budget data
+raw/cbo/51119-2026-02-LTBO-Budget.xlsx,cbo/51119-2026-02-LTBO-Budget.xlsx,CBO February 2026 long-term budget outlook
 raw/historical/Annual_FY_February2026.csv,historical/Annual_FY_February2026.csv,CBO fiscal-year potential GDP
 raw/historical/Quarterly_February2026.csv,historical/Quarterly_February2026.csv,CBO quarterly output gap
 raw/historical/hist10z1_fy2026.xlsx,historical/hist10z1_fy2026.xlsx,OMB GDP and price-level table
-

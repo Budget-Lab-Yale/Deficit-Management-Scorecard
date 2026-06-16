@@ -1,14 +1,17 @@
 # Deficit Scorecard
 
-This repository contains the R implementation of the empirical Budget Lab deficit
+This repository contains the R implementation of the Budget Lab deficit
 scorecard. The scorecard is based on Danny Yagan and Alan Auerbach's forthcoming
 National Tax Journal paper and is designed to be updated as new CBO budget
 reports arrive.
 
-The first deliverable is the empirical "unified" scorecard used for website
-publication. It rebuilds updated versions of the Appendix Figure A-1 debt-GDP
-change scatter and scorecard distribution from the replication kit. The pipeline
-does not port the forward-looking simulation stack or the deficit-reduction table.
+The first deliverable rebuilds the empirical "unified" scorecard used for
+website publication, including updated versions of the Appendix Figure A-1
+debt-GDP-change scatter and scorecard distribution from the replication kit. The
+pipeline also builds the forward-looking deficit-reduction table by applying a
+fixed fiscal-feedback parameter from the paper to the February 2026 CBO baseline.
+It does not port the Monte Carlo simulation stack that searches over candidate
+feedback parameters.
 
 ## Repository Layout
 
@@ -37,12 +40,17 @@ Optional environment variables:
 
 - `DEFICIT_SCORECARD_INPUT_DIR`: input directory, default `data-raw`.
 - `DEFICIT_SCORECARD_OUTPUT_DIR`: output directory, default `output`.
+- `DEFICIT_SCORECARD_FORWARD_C`: forward-table fiscal feedback parameter,
+  default `0.19`.
 
 Generated outputs include:
 
 - `data/processed/dataset_for_regression_26.rds`
 - `data/processed/dataset_for_regression_26__techcustomdutiesinleg.rds`
 - `output/scorecard_unified.csv`
+- `output/forward_deficit_reduction_table.csv`
+- `output/forward_table_detail.csv`
+- `output/panel_b_deficit_reduction.tex`
 - `output/residuals_basefit_1984b2026a_nozlb_new_updated_debt.pdf`
 - `output/fig3_distribution_residuals_new_updated_kunits_10_debt.pdf`
 
@@ -58,7 +66,5 @@ generated PDFs against the replication-kit Stata outputs:
 
 ## Non-Goals
 
-This pass does not implement the web UI, Monte Carlo simulation stack, or
-forward-looking policy tables. It focuses only on the empirical unified
-scorecard needed for the initial website release.
-
+This pass does not implement the web UI or Monte Carlo simulation stack. The
+forward-looking table uses a fixed `c` value rather than searching for `c*`.
