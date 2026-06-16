@@ -126,11 +126,13 @@ plot_scatter <- function(score_data, output_dir) {
   points <- plot_parts$points |>
     dplyr::mutate(
       plot_group = dplyr::case_when(
-        .data$group == "pre_2004" ~ "Pre-2004",
-        .data$group == "post_2004" ~ "Post-2004",
-        TRUE ~ "Highlighted"
+        dplyr::between(.data$periodid, 198402L, 200301L) ~ "Pre-2004",
+        dplyr::between(.data$periodid, 200401L, 202402L) ~ "Post-2004",
+        dplyr::between(.data$periodid, 202501L, 202503L) | .data$periodid == 202601L ~ "Highlighted",
+        TRUE ~ NA_character_
       )
-    )
+    ) |>
+    dplyr::filter(!is.na(.data$plot_group))
   line <- plot_parts$line
 
   colors <- c("Pre-2004" = "darkgreen", "Post-2004" = "navy", "Highlighted" = "red3")
@@ -181,7 +183,7 @@ plot_scatter <- function(score_data, output_dir) {
 
 plot_distribution <- function(score_data, output_dir) {
   density_data <- function(values, label) {
-    dens <- stats::density(values, na.rm = TRUE)
+    dens <- stats::density(values, na.rm = TRUE, kernel = "epanechnikov")
     tibble::tibble(x = dens$x, y = dens$y * 10, group = label)
   }
 
@@ -217,8 +219,14 @@ plot_distribution <- function(score_data, output_dir) {
       size = 2.7,
       hjust = -0.05
     ) +
-    ggplot2::scale_color_manual(values = c("Pre-2004" = "darkgreen", "Post-2004" = "navy")) +
-    ggplot2::scale_linetype_manual(values = c("Pre-2004" = "solid", "Post-2004" = "longdash")) +
+    ggplot2::scale_color_manual(
+      values = c("Pre-2004" = "darkgreen", "Post-2004" = "navy"),
+      breaks = c("Pre-2004", "Post-2004")
+    ) +
+    ggplot2::scale_linetype_manual(
+      values = c("Pre-2004" = "solid", "Post-2004" = "longdash"),
+      breaks = c("Pre-2004", "Post-2004")
+    ) +
     ggplot2::coord_cartesian(xlim = c(-1, 2.3), clip = "off") +
     ggplot2::labs(
       x = "Deficit increase relative to pre-2004-based prediction (% of GDP)",
