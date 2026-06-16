@@ -1,0 +1,10 @@
+data-raw/
+data/
+output/
+.Rhistory
+.RData
+.Ruserdata
+*.pdf
+*.png
+*.rds
+
