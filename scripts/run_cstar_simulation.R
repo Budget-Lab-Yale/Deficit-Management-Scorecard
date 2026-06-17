@@ -33,6 +33,7 @@ reps_scale <- as.numeric(Sys.getenv("DEFICIT_SCORECARD_CSTAR_REPS_SCALE", "1"))
 if (is.na(reps_scale) || reps_scale <= 0) {
   abort("DEFICIT_SCORECARD_CSTAR_REPS_SCALE must be a positive number")
 }
+paper_c_value <- as.numeric(Sys.getenv("DEFICIT_SCORECARD_FORWARD_C", "0.19"))
 
 result <- write_cstar_outputs(input_dir, data_dir, output_dir, reps_scale = reps_scale)
 
@@ -44,6 +45,6 @@ cat(sprintf(
 cat("c-star scan:\n")
 print(as.data.frame(result$summary))
 cat(sprintf(
-  "\nWrote c-star outputs to %s (2026 computed c* = %.2f; paper value = 0.19).\n",
-  output_dir, result$c_star_2026
+  "\nWrote c-star outputs to %s (%d computed c* = %.2f; paper value = %.2f).\n",
+  output_dir, result$published_vintage, result$c_star_published, paper_c_value
 ))

@@ -1,89 +1,9 @@
+# 2026 CBO baseline path for the forward table. Delegates to the general
+# build_cbo_path() (vintage 2026) without the 103-year extension, yielding the
+# same LTBO projection rows this table used before the c-star consolidation.
+# Requires R/cbo_paths.R to be sourced.
 read_ltbo_cbo_paths <- function(input_dir) {
-  ltbo_path <- file.path(input_dir, "cbo", "51119-2026-02-LTBO-Budget.xlsx")
-  hist_path <- file.path(input_dir, "cbo", "51134-2026-02-Historical-Budget-Data.xlsx")
-  assert_files_exist(c(ltbo_path, hist_path))
-
-  ltbo <- readxl::read_excel(
-    ltbo_path,
-    sheet = "Supplemental Table 1",
-    range = "A9:P40"
-  )
-
-  assert_required_columns(
-    ltbo,
-    c(
-      "Fiscal year",
-      "Revenues minus total noninterest spendingb",
-      "Federal debt held by the public",
-      "Revenues minus total spendingb",
-      "GDP (billions of dollars)",
-      "Net interest"
-    ),
-    "LTBO Supplemental Table 1"
-  )
-
-  ltbo <- ltbo |>
-    dplyr::mutate(gdp = as.numeric(.data[["GDP (billions of dollars)"]])) |>
-    dplyr::transmute(
-      year = as.integer(.data[["Fiscal year"]]),
-      b_cbo = as.numeric(.data[["Federal debt held by the public"]]) / 100,
-      s_cbo = as.numeric(.data[["Revenues minus total noninterest spendingb"]]) / 100,
-      s_tot_cbo = as.numeric(.data[["Revenues minus total spendingb"]]) / 100,
-      gdp = .data$gdp,
-      interest = as.numeric(.data[["Net interest"]]) / 100 * .data$gdp
-    )
-
-  debt <- readxl::read_excel(
-    hist_path,
-    sheet = "1. Rev, Outlays, Surplus, Debt",
-    range = "A9:H73"
-  )
-  debt_year_col <- names(debt)[1]
-  debt_col <- names(debt)[grepl("^Debt held by the public", names(debt))]
-  debt <- debt |>
-    dplyr::transmute(
-      year = as.integer(.data[[debt_year_col]]),
-      debt = as.numeric(.data[[debt_col]])
-    ) |>
-    dplyr::filter(.data$year == 2025L)
-
-  debt_gdp <- readxl::read_excel(
-    hist_path,
-    sheet = "1a. Rev, Outlays, Surplus (GDP)",
-    range = "A9:H73"
-  )
-  debt_gdp_year_col <- names(debt_gdp)[1]
-  debt_gdp_col <- names(debt_gdp)[grepl("^Debt held by the public", names(debt_gdp))]
-  debt_gdp <- debt_gdp |>
-    dplyr::transmute(
-      year = as.integer(.data[[debt_gdp_year_col]]),
-      b_cbo = as.numeric(.data[[debt_gdp_col]]) / 100
-    ) |>
-    dplyr::filter(.data$year == 2025L)
-
-  initial <- checked_left_join(debt, debt_gdp, "year", "2025 debt", "2025 debt/GDP") |>
-    dplyr::mutate(
-      gdp = .data$debt / .data$b_cbo,
-      s_cbo = NA_real_,
-      s_tot_cbo = NA_real_,
-      interest = NA_real_
-    ) |>
-    dplyr::select("year", "b_cbo", "s_cbo", "s_tot_cbo", "gdp", "interest")
-
-  dplyr::bind_rows(initial, ltbo) |>
-    dplyr::arrange(.data$year) |>
-    dplyr::mutate(
-      debt = .data$b_cbo * .data$gdp,
-      primarydeficit = -(.data$s_cbo * .data$gdp),
-      i = .data$interest / dplyr::lag(.data$debt),
-      g = .data$gdp / dplyr::lag(.data$gdp) - 1,
-      rho_cbo = (.data$i - .data$g) / (1 + .data$g),
-      debtchange = .data$debt - dplyr::lag(.data$debt),
-      m_cbo = (.data$debtchange - .data$primarydeficit - .data$interest) / .data$gdp
-    ) |>
-    dplyr::filter(.data$year >= 2026L) |>
-    dplyr::mutate(model_year = dplyr::row_number()) |>
-    dplyr::select("model_year", "year", "b_cbo", "rho_cbo", "s_cbo", "s_tot_cbo", "m_cbo", "gdp", "g")
+  build_cbo_path(input_dir, 2026L, extend = FALSE)
 }
 
 simulate_deterministic_feedback <- function(c_value, cbo_paths, beta_1 = 0.576, beta_2 = 0.00848) {

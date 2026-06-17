@@ -15,13 +15,11 @@ estimate_rho_shock_sd <- function(historical_debt_evolution, min_year = 1972L) {
     "historical debt evolution"
   )
 
+  # read_historical_debt_evolution() already supplies rho = rminusg / (1 + g_nom);
+  # b = debt / gdp is the only derivation needed here.
   data <- historical_debt_evolution |>
     dplyr::arrange(.data$year) |>
     dplyr::mutate(b = .data$debt / .data$gdp)
-
-  if (!("rho" %in% names(data))) {
-    data <- dplyr::mutate(data, rho = .data$rminusg / (1 + .data$g_nom))
-  }
 
   assert_unique_key(data, "year", "historical debt evolution")
 
@@ -70,6 +68,9 @@ build_simulation_inputs <- function(input_dir, e_s_size = 0.25) {
     abort(sprintf("e_s_size must be finite and positive, got %s", e_s_size))
   }
 
+  # Only s_u_hat_risk and e_s_size feed the simulator (which uses the frozen
+  # SIM_BETA_1/SIM_BETA_2 constants). beta_1_risk/beta_2_risk/cons_risk are
+  # retained as diagnostics — e.g. beta_1_risk should sit near the fixed 0.576.
   tibble::tibble(
     beta_1_risk = ar$beta_1_risk,
     beta_2_risk = ar$beta_2_risk,

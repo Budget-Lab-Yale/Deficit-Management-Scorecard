@@ -11,32 +11,35 @@ SIM_BETA_1 <- 0.576
 SIM_BETA_2 <- 0.00848
 SIM_LAMBDA <- 0.02
 SIM_LAST_PERIOD <- 101L
-SIM_TERMINAL_MODEL_YEAR <- 101L
 SIM_DEBT_THRESHOLD <- 2.5
 SIM_TARGET_PROBABILITY <- 0.95
 SIM_SEED <- 1000L
 
-# Per-vintage risk reps, c-grid, and the calendar window for the pdchange table.
+# Per-vintage risk reps and c-grid (the paper-specific knobs). The pdchange
+# window is derived from the vintage's seed year: the LTBO covers seed_year+1
+# onward, and the 10-year forward window runs seed_year+2 .. seed_year+11.
 cstar_grid_config <- function(vintage) {
   configs <- list(
-    `2024` = list(risk_reps = 1000L, c_grid = c(0, 0.17, 0.18, 0.19), year_start = 2025L, terminal_year = 2034L),
-    `2025` = list(risk_reps = 5000L, c_grid = c(0, 0.17, 0.18, 0.19), year_start = 2026L, terminal_year = 2035L),
-    `2026` = list(risk_reps = 1000L, c_grid = c(0, 0.18, 0.19, 0.20), year_start = 2027L, terminal_year = 2036L)
+    `2024` = list(risk_reps = 1000L, c_grid = c(0, 0.17, 0.18, 0.19)),
+    `2025` = list(risk_reps = 5000L, c_grid = c(0, 0.17, 0.18, 0.19)),
+    `2026` = list(risk_reps = 1000L, c_grid = c(0, 0.18, 0.19, 0.20))
   )
   key <- as.character(vintage)
   if (!key %in% names(configs)) {
     abort(sprintf("No c-star grid configured for vintage %s", vintage))
   }
-  configs[[key]]
+  seed_year <- cbo_path_config(vintage)$seed_year
+  c(configs[[key]], list(year_start = seed_year + 2L, terminal_year = seed_year + 11L))
 }
 
 # Simulate `reps` economies for one feedback strength `c`. Returns the terminal
-# debt-to-GDP ratio (at model_year 101) across reps, and optionally the full
-# deterministic baseline/prescription paths (use only with small reps).
+# debt-to-GDP ratio (at `terminal_model_year`) across reps, and optionally the
+# first rep's baseline/prescription trajectories (intended for the reps = 1
+# deterministic path; only the first rep is recorded).
 simulate_cbo_paths <- function(cbo_path, c, s_u, e_s_size, reps,
                                shocks = TRUE, seed = SIM_SEED, return_paths = FALSE,
                                beta_1 = SIM_BETA_1, beta_2 = SIM_BETA_2, lambda = SIM_LAMBDA,
-                               last_period = SIM_LAST_PERIOD) {
+                               last_period = SIM_LAST_PERIOD, terminal_model_year = last_period) {
   set.seed(seed)
 
   cbo_path <- dplyr::arrange(cbo_path, .data$model_year)
@@ -53,16 +56,15 @@ simulate_cbo_paths <- function(cbo_path, c, s_u, e_s_size, reps,
   b_f <- rep(b_cbo[[1]], reps)
   cum <- rep(0, reps)
 
-  term_b_s <- NULL
-  term_b_f <- NULL
+  terminal_b <- NULL
 
   if (return_paths) {
-    B_s <- matrix(NA_real_, obs, reps)
-    B_f <- matrix(NA_real_, obs, reps)
-    S_f <- matrix(NA_real_, obs, reps)
-    B_s[1, ] <- b_s
-    B_f[1, ] <- b_f
-    S_f[1, ] <- s_cbo[[1]]
+    b_baseline <- rep(NA_real_, obs)
+    b_prescription <- rep(NA_real_, obs)
+    s_prescription <- rep(NA_real_, obs)
+    b_baseline[1] <- b_s[[1]]
+    b_prescription[1] <- b_f[[1]]
+    s_prescription[1] <- s_cbo[[1]]
   }
 
   for (t in 2:obs) {
@@ -98,28 +100,25 @@ simulate_cbo_paths <- function(cbo_path, c, s_u, e_s_size, reps,
     b_f <- b_f_new
     cum <- cum_new
 
-    if (t == SIM_TERMINAL_MODEL_YEAR) {
-      term_b_s <- b_s
-      term_b_f <- b_f
+    if (t == terminal_model_year) {
+      terminal_b <- if (c > 0) b_f else b_s
     }
     if (return_paths) {
-      B_s[t, ] <- b_s
-      B_f[t, ] <- b_f
-      S_f[t, ] <- s_f_new
+      b_baseline[t] <- b_s[[1]]
+      b_prescription[t] <- b_f[[1]]
+      s_prescription[t] <- s_f_new[[1]]
     }
   }
-
-  terminal_b <- if (c > 0) term_b_f else term_b_s
 
   result <- list(terminal_b = terminal_b, c = c, reps = reps)
   if (return_paths) {
     result$paths <- tibble::tibble(
       model_year = cbo_path$model_year,
       year = cbo_path$year,
-      b_baseline = B_s[, 1],
+      b_baseline = b_baseline,
       s_baseline = s_cbo,
-      b_prescription = B_f[, 1],
-      s_prescription = S_f[, 1]
+      b_prescription = b_prescription,
+      s_prescription = s_prescription
     )
   }
   result
@@ -227,14 +226,16 @@ build_cstar_summary <- function(input_dir, simulation_inputs,
 # and write the diagnostic CSVs plus the computed-c* forward table. Shared by the
 # standalone entrypoint and run_pipeline.R. Returns the scan summary invisibly.
 # Requires R/forward_table.R, R/build_inputs.R, and R/simulation_inputs.R sourced.
-write_cstar_outputs <- function(input_dir, data_dir, output_dir, reps_scale = 1) {
+write_cstar_outputs <- function(input_dir, data_dir, output_dir, reps_scale = 1,
+                                vintages = c(2024L, 2025L, 2026L),
+                                published_vintage = max(vintages)) {
   dir.create(data_dir, recursive = TRUE, showWarnings = FALSE)
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
   simulation_inputs <- build_simulation_inputs(input_dir)
   saveRDS(simulation_inputs, file.path(data_dir, "simulation_inputs.rds"))
 
-  result <- build_cstar_summary(input_dir, simulation_inputs, reps_scale = reps_scale)
+  result <- build_cstar_summary(input_dir, simulation_inputs, vintages = vintages, reps_scale = reps_scale)
 
   for (vintage in names(result$cbo_paths)) {
     saveRDS(result$cbo_paths[[vintage]], file.path(data_dir, sprintf("cbo_paths_%s.rds", vintage)))
@@ -244,17 +245,18 @@ write_cstar_outputs <- function(input_dir, data_dir, output_dir, reps_scale = 1)
   readr::write_csv(result$grid_scan, file.path(output_dir, "ltbo_cstar_grid_scan.csv"))
   readr::write_csv(result$pdchange, file.path(output_dir, "ltbo_pdchange_terminal_values.csv"))
 
-  c_star_2026 <- result$summary$c_star_250_95[result$summary$ltbo == 2026L]
-  if (length(c_star_2026) != 1 || is.na(c_star_2026)) {
-    abort("Could not determine 2026 c* from the scan; cannot build the c-star forward table.")
+  c_star_published <- result$summary$c_star_250_95[result$summary$ltbo == published_vintage]
+  if (length(c_star_published) != 1 || is.na(c_star_published)) {
+    abort(sprintf("Could not determine %s c* from the scan; cannot build the c-star forward table.", published_vintage))
   }
 
-  forward_cstar <- build_forward_table_data(input_dir, c_value = c_star_2026)
+  forward_cstar <- build_forward_table_data(input_dir, c_value = c_star_published)
   forward_rows <- build_forward_table_rows(forward_cstar$table_data)
   readr::write_csv(forward_rows, file.path(output_dir, "forward_table_cstar.csv"))
   readr::write_csv(forward_cstar$simulated, file.path(output_dir, "forward_deterministic_feedback_path_cstar.csv"))
 
   result$simulation_inputs <- simulation_inputs
-  result$c_star_2026 <- c_star_2026
+  result$published_vintage <- published_vintage
+  result$c_star_published <- c_star_published
   invisible(result)
 }

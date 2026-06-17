@@ -138,30 +138,26 @@ read_previous_year_budget <- function(input_dir, vintage) {
     dplyr::select("year", "b_cbo", "s_cbo", "s_tot_cbo", "gdp", "interest")
 }
 
-# Carry baseline levels forward to `obs` model years; m_cbo is zero for the
-# extension years (matching Stata's "Assume zero for extended periods").
+# Carry baseline levels forward to `obs` model years by replicating the last
+# projection row (so b_cbo/rho_cbo/s_cbo/s_tot_cbo/g hold constant), advancing
+# year and model_year, and zeroing m_cbo (matching Stata's extension years).
 extend_cbo_path <- function(path, obs = CBO_PATH_OBS) {
   n <- nrow(path)
   if (n >= obs) {
     return(path[seq_len(obs), , drop = FALSE])
   }
-  carry <- c("b_cbo", "rho_cbo", "s_cbo", "s_tot_cbo")
-  for (i in seq.int(n + 1L, obs)) {
-    new_row <- path[i - 1L, , drop = FALSE]
-    new_row$model_year <- i
-    new_row$year <- path$year[[i - 1L]] + 1L
-    new_row$m_cbo <- 0
-    new_row$g <- path$g[[i - 1L]]
-    for (col in carry) {
-      new_row[[col]] <- path[[col]][[i - 1L]]
-    }
-    path <- dplyr::bind_rows(path, new_row)
-  }
-  path
+  k <- obs - n
+  extension <- path[rep(n, k), , drop = FALSE]
+  extension$model_year <- seq.int(n + 1L, obs)
+  extension$year <- path$year[[n]] + seq_len(k)
+  extension$m_cbo <- 0
+  dplyr::bind_rows(path, extension)
 }
 
-# Full 103-row CBO baseline path for a vintage, ready for the simulator.
-build_cbo_path <- function(input_dir, vintage, obs = CBO_PATH_OBS) {
+# CBO baseline path for a vintage, ready for the simulator. With extend = TRUE
+# (the default) it is carried out to `obs` model years; with extend = FALSE it
+# returns just the LTBO projection rows (used by the forward table).
+build_cbo_path <- function(input_dir, vintage, obs = CBO_PATH_OBS, extend = TRUE) {
   projection <- read_ltbo_projection(input_dir, vintage)
   seed <- read_previous_year_budget(input_dir, vintage)
 
@@ -182,13 +178,13 @@ build_cbo_path <- function(input_dir, vintage, obs = CBO_PATH_OBS) {
       "model_year", "year", "b_cbo", "rho_cbo", "s_cbo", "s_tot_cbo", "m_cbo", "gdp", "g"
     )
 
-  path <- extend_cbo_path(combined, obs = obs)
+  path <- if (extend) extend_cbo_path(combined, obs = obs) else combined
 
   assert_unique_key(path, "model_year", sprintf("CBO path %s", vintage))
   assert_unique_key(path, "year", sprintf("CBO path %s", vintage))
   assert_no_missing(path, c("b_cbo", "rho_cbo", "s_cbo", "m_cbo"), sprintf("CBO path %s", vintage))
-  if (nrow(path) != obs || !any(path$model_year == 101L)) {
-    abort(sprintf("CBO path %s must have %s rows including model_year 101", vintage, obs))
+  if (extend && (nrow(path) != obs || !any(path$model_year == obs - 2L))) {
+    abort(sprintf("CBO path %s must have %s rows including the terminal model year", vintage, obs))
   }
   path
 }

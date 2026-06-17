@@ -69,6 +69,6 @@ if (is.na(cstar_reps_scale) || cstar_reps_scale <= 0) {
 }
 cstar <- write_cstar_outputs(input_dir, processed_dir, output_dir, reps_scale = cstar_reps_scale)
 cat(sprintf(
-  "Wrote c-star diagnostics (2026 computed c* = %.2f; paper/published value = %.2f)\n",
-  cstar$c_star_2026, forward_c_value
+  "Wrote c-star diagnostics (%d computed c* = %.2f; paper/published value = %.2f)\n",
+  cstar$published_vintage, cstar$c_star_published, forward_c_value
 ))
