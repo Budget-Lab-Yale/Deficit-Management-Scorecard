@@ -10,6 +10,9 @@ source("R/assertions.R")
 source("R/build_inputs.R")
 source("R/scorecard.R")
 source("R/forward_table.R")
+source("R/cbo_paths.R")
+source("R/simulation_inputs.R")
+source("R/cstar_simulation.R")
 
 input_dir <- Sys.getenv("DEFICIT_SCORECARD_INPUT_DIR", "data-raw")
 output_dir <- Sys.getenv("DEFICIT_SCORECARD_OUTPUT_DIR", "output")
@@ -55,4 +58,17 @@ saveRDS(forward, file.path(processed_dir, "forward_table.rds"))
 forward_rows <- write_forward_table_outputs(forward, output_dir)
 
 cat(sprintf("Wrote %s scorecard rows to %s\n", nrow(scorecard), file.path(output_dir, "scorecard_unified.csv")))
-cat(sprintf("Wrote %s forward table rows to %s with c = %.2f\n", nrow(forward_rows), file.path(output_dir, "forward_deficit_reduction_table.csv"), forward_c_value))
+cat(sprintf("Wrote %s forward table rows to %s with c = %.2f (published, paper-aligned)\n", nrow(forward_rows), file.path(output_dir, "forward_deficit_reduction_table.csv"), forward_c_value))
+
+# Forward-looking c-star simulation (diagnostic). The published forward table
+# above stays at the paper value (c = 0.19) for continuity; this step computes
+# c* from the stochastic simulation and writes it alongside as a diagnostic.
+cstar_reps_scale <- as.numeric(Sys.getenv("DEFICIT_SCORECARD_CSTAR_REPS_SCALE", "1"))
+if (is.na(cstar_reps_scale) || cstar_reps_scale <= 0) {
+  abort("DEFICIT_SCORECARD_CSTAR_REPS_SCALE must be a positive number")
+}
+cstar <- write_cstar_outputs(input_dir, processed_dir, output_dir, reps_scale = cstar_reps_scale)
+cat(sprintf(
+  "Wrote c-star diagnostics (2026 computed c* = %.2f; paper/published value = %.2f)\n",
+  cstar$c_star_2026, forward_c_value
+))
