@@ -31,7 +31,7 @@ assert_no_missing(
   datasets$main |>
     dplyr::filter(
       .data$periodid >= 198402L,
-      .data$periodid <= 202601L,
+      .data$periodid <= scorecard_latest_periodid(),
       .data$periodid != 202002L,
       .data$periodid != 202302L
     ),
@@ -63,12 +63,23 @@ cat(sprintf("Wrote %s forward table rows to %s with c = %.2f (published, paper-a
 # Forward-looking c-star simulation (diagnostic). The published forward table
 # above stays at the paper value (c = 0.19) for continuity; this step computes
 # c* from the stochastic simulation and writes it alongside as a diagnostic.
+# It needs the extra 2024/2025 LTBO vintages, so a failure here (e.g. those
+# inputs not bootstrapped) must not sink the published scorecard/forward outputs
+# already written above — warn and continue instead.
 cstar_reps_scale <- as.numeric(Sys.getenv("DEFICIT_SCORECARD_CSTAR_REPS_SCALE", "1"))
 if (is.na(cstar_reps_scale) || cstar_reps_scale <= 0) {
   abort("DEFICIT_SCORECARD_CSTAR_REPS_SCALE must be a positive number")
 }
-cstar <- write_cstar_outputs(input_dir, processed_dir, output_dir, reps_scale = cstar_reps_scale)
-cat(sprintf(
-  "Wrote c-star diagnostics (%d computed c* = %.2f; paper/published value = %.2f)\n",
-  cstar$published_vintage, cstar$c_star_published, forward_c_value
-))
+tryCatch(
+  {
+    cstar <- write_cstar_outputs(input_dir, processed_dir, output_dir, reps_scale = cstar_reps_scale)
+    cat(sprintf(
+      "Wrote c-star diagnostics (%d computed c* = %.2f; paper/published value = %.2f)\n",
+      cstar$published_vintage, cstar$c_star_published, forward_c_value
+    ))
+  },
+  error = function(e) {
+    cat(sprintf("WARNING: c-star diagnostic skipped: %s\n", conditionMessage(e)))
+    cat("  (Published scorecard and forward table above are unaffected.)\n")
+  }
+)

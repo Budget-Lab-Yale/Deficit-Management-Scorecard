@@ -1,8 +1,32 @@
+# Single source of truth for the current CBO vintage. Update these fields
+# together each release (typically February and August). Filenames are paths
+# relative to the input directory (data-raw); latest_report_year/_half identify
+# the newest CBO report so the pipeline can assert that data and config agree.
+scorecard_vintage <- function() {
+  list(
+    label = "February 2026",
+    latest_report_year = 2026L,
+    latest_report_half = 1L, # 1 = winter report (a), 2 = summer report (b)
+    pgdp_csv = file.path("historical", "Annual_FY_February2026.csv"),
+    outgap_csv = file.path("historical", "Quarterly_February2026.csv"),
+    historical_budget_xlsx = file.path("cbo", "51134-2026-02-Historical-Budget-Data.xlsx"),
+    omb_gdp_price_xlsx = file.path("historical", "hist10z1_fy2026.xlsx"),
+    revision_main_xlsx = "stata_import_file_2026_new.xlsx",
+    revision_alt_xlsx = "stata_import_file_2026_techcustomdutiesinleg.xlsx"
+  )
+}
+
+# periodid of the newest report, e.g. 202601 for 2026a. periodid encodes the
+# semiannual report as report_year * 100 + report_half.
+scorecard_latest_periodid <- function(vintage = scorecard_vintage()) {
+  as.integer(vintage$latest_report_year * 100L + vintage$latest_report_half)
+}
+
 read_pgdp <- function(input_dir) {
-  path <- file.path(input_dir, "historical", "Annual_FY_February2026.csv")
+  path <- file.path(input_dir, scorecard_vintage()$pgdp_csv)
   assert_files_exist(path)
   data <- readr::read_csv(path, show_col_types = FALSE)
-  assert_required_columns(data, c("date", "potential_gdp"), "Annual_FY_February2026.csv")
+  assert_required_columns(data, c("date", "potential_gdp"), "potential GDP CSV")
 
   data |>
     dplyr::transmute(
@@ -13,10 +37,10 @@ read_pgdp <- function(input_dir) {
 }
 
 read_outgap <- function(input_dir) {
-  path <- file.path(input_dir, "historical", "Quarterly_February2026.csv")
+  path <- file.path(input_dir, scorecard_vintage()$outgap_csv)
   assert_files_exist(path)
   data <- readr::read_csv(path, show_col_types = FALSE)
-  assert_required_columns(data, c("date", "output_gap"), "Quarterly_February2026.csv")
+  assert_required_columns(data, c("date", "output_gap"), "output gap CSV")
 
   data |>
     dplyr::mutate(
@@ -34,7 +58,7 @@ read_outgap <- function(input_dir) {
 }
 
 read_budget_vars <- function(input_dir, pgdp) {
-  path <- file.path(input_dir, "cbo", "51134-2026-02-Historical-Budget-Data.xlsx")
+  path <- file.path(input_dir, scorecard_vintage()$historical_budget_xlsx)
   assert_files_exist(path)
   data <- readxl::read_excel(
     path,
@@ -59,8 +83,9 @@ read_budget_vars <- function(input_dir, pgdp) {
 }
 
 read_historical_debt_evolution <- function(input_dir) {
-  cbo_path <- file.path(input_dir, "cbo", "51134-2026-02-Historical-Budget-Data.xlsx")
-  hist10_path <- file.path(input_dir, "historical", "hist10z1_fy2026.xlsx")
+  vintage <- scorecard_vintage()
+  cbo_path <- file.path(input_dir, vintage$historical_budget_xlsx)
+  hist10_path <- file.path(input_dir, vintage$omb_gdp_price_xlsx)
   assert_files_exist(c(cbo_path, hist10_path))
 
   debt <- readxl::read_excel(
@@ -110,7 +135,7 @@ read_historical_debt_evolution <- function(input_dir) {
       gdp1962 = suppressWarnings(as.numeric(.data[[price_cols[[2]]]])),
       pricelevel2017 = suppressWarnings(as.numeric(.data[[price_cols[[3]]]]))
     ) |>
-    dplyr::filter(!is.na(.data$year), dplyr::between(.data$year, 1962L, 2026L))
+    dplyr::filter(!is.na(.data$year), dplyr::between(.data$year, 1962L, vintage$latest_report_year))
 
   base_2012 <- price$pricelevel2017[price$year == 2012]
   if (length(base_2012) != 1 || is.na(base_2012)) {
@@ -119,7 +144,7 @@ read_historical_debt_evolution <- function(input_dir) {
 
   price <- price |>
     dplyr::mutate(pricelevel = .data$pricelevel2017 / base_2012) |>
-    dplyr::select(.data$year, .data$pricelevel)
+    dplyr::select(year, pricelevel)
 
   debt |>
     checked_left_join(debt_gdp, "year", "debt", "debt_gdp") |>
@@ -136,16 +161,7 @@ read_historical_debt_evolution <- function(input_dir) {
       rho = .data$rminusg / (1 + .data$g_nom)
     ) |>
     dplyr::select(
-      .data$year,
-      .data$r,
-      .data$g,
-      .data$rminusg,
-      .data$debt,
-      .data$g_nom,
-      .data$gdp,
-      .data$inflation,
-      .data$interest,
-      .data$rho
+      year, r, g, rminusg, debt, g_nom, gdp, inflation, interest, rho
     )
 }
 
@@ -179,7 +195,7 @@ clean_description_vars <- function(data) {
         TRUE ~ .data$descript_var
       )
     ) |>
-    dplyr::select(-.data$des_temp)
+    dplyr::select(-des_temp)
 }
 
 read_cbo_revision_workbook <- function(input_dir, filename) {
@@ -281,7 +297,7 @@ apply_report_timing_adjustments <- function(data) {
         .data$report_half_final
       )
     ) |>
-    dplyr::select(-.data$has_jan, -.data$has_feb)
+    dplyr::select(-has_jan, -has_feb)
 }
 
 max_or_na <- function(x) {
@@ -345,7 +361,7 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
     )
 
   regression_data <- dplyr::bind_rows(deficits, exclude_def) |>
-    dplyr::rename(report_half = .data$report_half_final) |>
+    dplyr::rename(report_half = report_half_final) |>
     dplyr::mutate(change_type = trimws(.data$change_type)) |>
     dplyr::arrange(.data$report_year, .data$report_half)
 
@@ -353,7 +369,7 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
     dplyr::filter(.data$change_type %in% c("leg", "baseline")) |>
     dplyr::filter(.data$budget_line %in% c("rev", "out", "def")) |>
     checked_left_join(
-      dplyr::select(budget_vars, .data$report_year, .data$surplus_act, .data$debt_act),
+      dplyr::select(budget_vars, report_year, surplus_act, debt_act),
       "report_year",
       "regression data",
       "budget vars"
@@ -365,7 +381,7 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
     dplyr::filter(.data$change_type == "baseline", .data$budget_line == "def")
 
   pgdp_lookup <- pgdp |>
-    dplyr::select(.data$report_year, .data$pgdp)
+    dplyr::select(report_year, pgdp)
 
   weighted_value <- function(report_year, values, weights, sign = 1) {
     out <- numeric(length(report_year))
@@ -442,15 +458,15 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
 
   surplus_lookup <- by_period |>
     dplyr::select(
-      lag_key_year = .data$report_year,
-      lag_key_half = .data$report_half,
-      surplus_exp = .data$surplus_exp_cur,
-      surplus_exp_ewtd = .data$surplus_exp_cur_ewtd
+      lag_key_year = report_year,
+      lag_key_half = report_half,
+      surplus_exp = surplus_exp_cur,
+      surplus_exp_ewtd = surplus_exp_cur_ewtd
     )
 
   by_period <- by_period |>
     checked_left_join(surplus_lookup, c("lag_key_year", "lag_key_half"), "period data", "lagged surplus") |>
-    dplyr::select(-.data$lag_key_year, -.data$lag_key_half)
+    dplyr::select(-lag_key_year, -lag_key_half)
 
   manual_2023 <- by_period |>
     dplyr::filter(.data$report_year == 2022L, .data$report_half == 1L) |>
@@ -490,17 +506,8 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
     ) |>
     checked_left_join(lag_same_half, c("report_year", "report_half"), "period data", "lagged actuals") |>
     dplyr::select(
-      .data$report_year,
-      .data$report_half,
-      .data$outgap,
-      .data$surplus,
-      .data$surplus_exp,
-      .data$surplus_ewtd,
-      .data$revenue,
-      .data$outlays,
-      .data$lag_outgap_pgdp,
-      .data$surplus_exp_ewtd,
-      .data$surplus_exp_cur
+      report_year, report_half, outgap, surplus, surplus_exp, surplus_ewtd,
+      revenue, outlays, lag_outgap_pgdp, surplus_exp_ewtd, surplus_exp_cur
     ) |>
     dplyr::arrange(.data$report_year, .data$report_half) |>
     dplyr::group_by(.data$report_year, .data$report_half) |>
@@ -516,17 +523,7 @@ build_merged_budget_data <- function(leg_full, baseline_def, historical, pgdp) {
       rho = .data$rminusg / (1 + .data$g_nom)
     ) |>
     dplyr::select(
-      .data$year,
-      .data$r,
-      .data$g,
-      .data$rminusg,
-      .data$debt,
-      .data$g_nom,
-      .data$gdp,
-      .data$inflation,
-      .data$interest,
-      .data$b,
-      .data$rho
+      year, r, g, rminusg, debt, g_nom, gdp, inflation, interest, b, rho
     )
 
   merged <- leg_full |>
@@ -537,16 +534,10 @@ build_merged_budget_data <- function(leg_full, baseline_def, historical, pgdp) {
 
   baseline_keep <- baseline_def |>
     dplyr::select(
-      .data$report_year,
-      .data$report_half,
-      .data$change_type,
-      .data$budget_line,
+      report_year, report_half, change_type, budget_line,
       dplyr::all_of(paste0("t", 0:12)),
       dplyr::all_of(paste0("w_t", 0:5)),
-      .data$disc,
-      .data$a0,
-      .data$factor_w,
-      .data$augshift
+      disc, a0, factor_w, augshift
     )
 
   merged <- merged |>
@@ -556,10 +547,10 @@ build_merged_budget_data <- function(leg_full, baseline_def, historical, pgdp) {
     checked_left_join(pgdp, "report_year", "merged budget data", "pgdp")
 
   yearly <- pgdp |>
-    dplyr::rename(year = .data$report_year) |>
+    dplyr::rename(year = report_year) |>
     dplyr::left_join(
       hist_to_merge |>
-        dplyr::select(.data$year, .data$b),
+        dplyr::select(year, b),
       by = "year"
     ) |>
     dplyr::arrange(.data$year) |>
@@ -575,8 +566,8 @@ build_merged_budget_data <- function(leg_full, baseline_def, historical, pgdp) {
       b_lag_1 = dplyr::lag(.data$b, 1),
       b_lag_2 = dplyr::lag(.data$b, 2)
     ) |>
-    dplyr::select(-.data$pgdp, -.data$b) |>
-    dplyr::rename(report_year = .data$year)
+    dplyr::select(-pgdp, -b) |>
+    dplyr::rename(report_year = year)
 
   merged <- checked_left_join(merged, yearly, "report_year", "merged budget data", "leads/lags")
 
@@ -623,18 +614,29 @@ build_dataset_for_regression <- function(merged_budget) {
       lag_outgap_pgdp2 = .data$lag_outgap_pgdp^2,
       lag_outgap_pgdp3 = .data$lag_outgap_pgdp^3,
       lag_outgap_pgdp4 = .data$lag_outgap_pgdp^4,
-      periodid = as.integer(sprintf("%s0%s", .data$report_year, .data$report_half)),
+      periodid = as.integer(.data$report_year * 100L + .data$report_half),
       sample_1 = .data$periodid >= 198402L & .data$periodid <= 200301L,
-      sample_2 = .data$periodid >= 200401L & .data$periodid <= 202601L & .data$periodid != 202002L
+      sample_2 = .data$periodid >= 200401L & .data$periodid <= scorecard_latest_periodid() & .data$periodid != 202002L
     ) |>
     dplyr::arrange(.data$report_year, .data$report_half)
 }
 
 build_all_datasets <- function(input_dir) {
+  vintage <- scorecard_vintage()
   pgdp <- read_pgdp(input_dir)
   outgap <- read_outgap(input_dir)
   budget_vars <- read_budget_vars(input_dir, pgdp)
   historical <- read_historical_debt_evolution(input_dir)
+
+  # The 5-year forward weighting needs potential GDP out to report_year + 4 for
+  # the latest report; a short PGDP series would otherwise inject silent NAs.
+  horizon_year <- vintage$latest_report_year + 4L
+  if (max(pgdp$report_year, na.rm = TRUE) < horizon_year) {
+    abort(sprintf(
+      "Potential-GDP series ends at %d but the %d weighting horizon needs %d. Refresh %s.",
+      max(pgdp$report_year, na.rm = TRUE), vintage$latest_report_year, horizon_year, vintage$pgdp_csv
+    ))
+  }
 
   build_one <- function(filename) {
     complete <- read_cbo_revision_workbook(input_dir, filename)
@@ -643,8 +645,26 @@ build_all_datasets <- function(input_dir) {
     build_dataset_for_regression(merged)
   }
 
-  list(
-    main = build_one("stata_import_file_2026_new.xlsx"),
-    alternative = build_one("stata_import_file_2026_techcustomdutiesinleg.xlsx")
+  datasets <- list(
+    main = build_one(vintage$revision_main_xlsx),
+    alternative = build_one(vintage$revision_alt_xlsx)
   )
+
+  # Tripwire: the newest period in the data must match the configured vintage.
+  # Catches both a stale/truncated read (data behind config) and an appended CBO
+  # release that nobody recorded in scorecard_vintage() (data ahead of config).
+  data_latest <- max(datasets$main$periodid, na.rm = TRUE)
+  expected_latest <- scorecard_latest_periodid(vintage)
+  if (data_latest != expected_latest) {
+    abort(sprintf(
+      paste0(
+        "Latest period in data is %d but scorecard_vintage() expects %d. ",
+        "If you appended a new CBO release, bump scorecard_vintage(); ",
+        "if the read truncated, check the Excel ranges/filenames."
+      ),
+      data_latest, expected_latest
+    ))
+  }
+
+  datasets
 }

@@ -22,7 +22,7 @@ add_period_fields <- function(data) {
 prepare_scorecard_data <- function(main_data, alternative_data) {
   base_data <- main_data |>
     add_period_fields() |>
-    dplyr::filter(dplyr::between(.data$periodid, 198402L, 202601L), .data$periodid != 202002L, !.data$zlb) |>
+    dplyr::filter(dplyr::between(.data$periodid, 198402L, scorecard_latest_periodid()), .data$periodid != 202002L, !.data$zlb) |>
     dplyr::mutate(
       surplus = 100 * .data$surplus,
       deltabexp_t0_t4 = 100 * .data$deltabexp_t0_t4,
