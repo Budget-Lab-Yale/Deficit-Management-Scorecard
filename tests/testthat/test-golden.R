@@ -18,8 +18,14 @@ test_that("scorecard highlight values match the February 2026 golden reference",
   expect_equal(pick("2026a", "failure_value"), 0.307925, tolerance = 1e-4)
   expect_equal(pick("2026a", "actual_deficit_reduction"), -0.030125, tolerance = 1e-4)
   expect_equal(pick("2026a", "predicted_deficit_reduction"), 0.277800, tolerance = 1e-4)
-  expect_equal(pick("2026a", "percentile_all"), 0.777778, tolerance = 1e-4)
-  expect_equal(pick("2026a", "percentile_post_2004"), 0.631579, tolerance = 1e-4)
+  expect_equal(pick("2026a", "percentile_all"), 0.781250, tolerance = 1e-4)
+  # The secondary-era comparison pool is 2003b-2024b (22 obs): the rep kit's
+  # density code started at 2004b, contradicting the paper's stated 2004a start;
+  # we additionally fold in the straddling 2003b observation (pending
+  # confirmation with Yagan); and 2023b rejoined both pools once its
+  # lagged-output-gap lookup was fixed to draw on the quarterly series.
+  # 14 of 22 values fall at or below 2026a's.
+  expect_equal(pick("2026a", "percentile_post_2004"), 0.636364, tolerance = 1e-4)
 
   expect_equal(pick("2025b", "failure_value"), 1.778613, tolerance = 1e-4)
   expect_equal(pick("2025b", "percentile_all"), 1.0, tolerance = 1e-9)

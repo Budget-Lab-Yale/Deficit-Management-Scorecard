@@ -32,8 +32,7 @@ assert_no_missing(
     dplyr::filter(
       .data$periodid >= 198402L,
       .data$periodid <= scorecard_latest_periodid(),
-      .data$periodid != 202002L,
-      .data$periodid != 202302L
+      .data$periodid != 202002L
     ),
   c("surplus", "deltabexp_t0_t4", "lag_outgap_pgdp"),
   "main regression dataset"
@@ -48,6 +47,7 @@ saveRDS(score, file.path(processed_dir, "scorecard_unified.rds"))
 scorecard <- write_scorecard_outputs(score$data, output_dir)
 plot_scatter(score$data, output_dir)
 plot_distribution(score$data, output_dir)
+plot_distribution_histogram(score$data, output_dir)
 
 forward_c_value <- as.numeric(Sys.getenv("DEFICIT_SCORECARD_FORWARD_C", "0.19"))
 if (is.na(forward_c_value) || forward_c_value <= 0) {

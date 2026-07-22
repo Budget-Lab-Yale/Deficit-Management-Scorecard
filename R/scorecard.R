@@ -56,7 +56,7 @@ prepare_scorecard_data <- function(main_data, alternative_data) {
       failure_value = .data$predicted - .data$surplus,
       group = dplyr::case_when(
         dplyr::between(.data$periodid, 198402L, 200301L) ~ "pre_2004",
-        dplyr::between(.data$periodid, 200402L, 202402L) ~ "post_2004",
+        dplyr::between(.data$periodid, 200302L, 202402L) ~ "post_2004",
         .data$periodid == 202501L ~ "highlight_2025a",
         .data$periodid == 202502L ~ "highlight_2025b",
         .data$periodid == 202503L ~ "highlight_2025b_star",
@@ -127,7 +127,7 @@ plot_scatter <- function(score_data, output_dir) {
     dplyr::mutate(
       plot_group = dplyr::case_when(
         dplyr::between(.data$periodid, 198402L, 200301L) ~ "Pre-2004",
-        dplyr::between(.data$periodid, 200401L, 202402L) ~ "Post-2004",
+        dplyr::between(.data$periodid, 200302L, 202402L) ~ "Post-2004",
         dplyr::between(.data$periodid, 202501L, 202503L) | .data$periodid == 202601L ~ "Highlighted",
         TRUE ~ NA_character_
       )
@@ -135,7 +135,7 @@ plot_scatter <- function(score_data, output_dir) {
     dplyr::filter(!is.na(.data$plot_group))
   line <- plot_parts$line
 
-  colors <- c("Pre-2004" = "darkgreen", "Post-2004" = "navy", "Highlighted" = "red3")
+  colors <- c("Pre-2004" = "darkgreen", "Post-2004" = "navy", "Highlighted" = "darkorchid3")
   plot <- ggplot2::ggplot(points, ggplot2::aes(x = .data$deltabexp_t0_t4_resid, y = .data$surplus_resid)) +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25) +
     ggplot2::geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.25) +
@@ -181,6 +181,90 @@ plot_scatter <- function(score_data, output_dir) {
   )
 }
 
+plot_distribution_histogram <- function(score_data, output_dir) {
+  binwidth <- 0.25
+  hist_data <- score_data |>
+    dplyr::filter(.data$group %in% c("pre_2004", "post_2004")) |>
+    dplyr::mutate(
+      group_label = dplyr::if_else(.data$group == "pre_2004", "1984b-2003a", "2003b-2024b"),
+      bin = floor(.data$failure_value / binwidth) * binwidth
+    ) |>
+    dplyr::count(.data$group_label, .data$bin) |>
+    dplyr::group_by(.data$group_label) |>
+    dplyr::mutate(pct = 100 * .data$n / sum(.data$n)) |>
+    dplyr::ungroup()
+
+  highlights <- score_data |>
+    dplyr::filter(.data$periodidchar %in% c("2025a", "2025b", "2025b*", "2026a")) |>
+    dplyr::select("periodidchar", "failure_value")
+
+  label_y <- max(hist_data$pct) * c(0.95, 0.8, 0.65, 0.5)
+  highlights <- highlights |>
+    dplyr::arrange(.data$failure_value) |>
+    dplyr::mutate(label_y = label_y[seq_len(dplyr::n())])
+
+  plot <- ggplot2::ggplot(
+    hist_data,
+    ggplot2::aes(
+      x = .data$bin + binwidth / 2, y = .data$pct,
+      fill = .data$group_label, color = .data$group_label
+    )
+  ) +
+    ggplot2::geom_col(position = "identity", alpha = 0.35, width = binwidth, linewidth = 0.5) +
+    ggplot2::geom_vline(xintercept = 0, color = "gray40", linewidth = 0.25) +
+    ggplot2::geom_vline(
+      data = highlights,
+      ggplot2::aes(xintercept = .data$failure_value),
+      inherit.aes = FALSE,
+      color = "darkorchid3",
+      linetype = "dashed",
+      linewidth = 0.45
+    ) +
+    ggplot2::geom_text(
+      data = highlights,
+      ggplot2::aes(x = .data$failure_value, y = .data$label_y, label = .data$periodidchar),
+      inherit.aes = FALSE,
+      color = "darkorchid3",
+      size = 2.7,
+      hjust = -0.05
+    ) +
+    ggplot2::scale_fill_manual(
+      values = c("1984b-2003a" = "darkgreen", "2003b-2024b" = "navy"),
+      breaks = c("1984b-2003a", "2003b-2024b")
+    ) +
+    ggplot2::scale_color_manual(
+      values = c("1984b-2003a" = "darkgreen", "2003b-2024b" = "navy"),
+      breaks = c("1984b-2003a", "2003b-2024b")
+    ) +
+    ggplot2::coord_cartesian(xlim = c(-1, 2.3), clip = "off") +
+    ggplot2::labs(
+      x = "Deficit increase relative to pre-2004-based prediction (% of GDP)",
+      y = sprintf("%% of observations per %.2f-wide bin", binwidth),
+      fill = NULL,
+      color = NULL
+    ) +
+    ggplot2::theme_minimal(base_size = 10) +
+    ggplot2::theme(
+      legend.position = "bottom",
+      panel.grid.minor = ggplot2::element_blank(),
+      plot.margin = ggplot2::margin(10, 20, 10, 10)
+    )
+
+  ggplot2::ggsave(
+    file.path(output_dir, "fig3_distribution_histogram_new_updated_debt.pdf"),
+    plot,
+    width = 6,
+    height = 4
+  )
+  ggplot2::ggsave(
+    file.path(output_dir, "fig3_distribution_histogram_new_updated_debt.png"),
+    plot,
+    width = 6,
+    height = 4,
+    dpi = 200
+  )
+}
+
 plot_distribution <- function(score_data, output_dir) {
   density_data <- function(values, label) {
     dens <- stats::density(values, na.rm = TRUE, kernel = "epanechnikov")
@@ -188,8 +272,8 @@ plot_distribution <- function(score_data, output_dir) {
   }
 
   plot_data <- dplyr::bind_rows(
-    density_data(score_data$failure_value[score_data$group == "pre_2004"], "Pre-2004"),
-    density_data(score_data$failure_value[score_data$group == "post_2004"], "Post-2004")
+    density_data(score_data$failure_value[score_data$group == "pre_2004"], "1984b-2003a"),
+    density_data(score_data$failure_value[score_data$group == "post_2004"], "2003b-2024b")
   )
   highlights <- score_data |>
     dplyr::filter(.data$periodidchar %in% c("2025a", "2025b", "2025b*", "2026a")) |>
@@ -207,7 +291,7 @@ plot_distribution <- function(score_data, output_dir) {
       data = highlights,
       ggplot2::aes(xintercept = .data$failure_value),
       inherit.aes = FALSE,
-      color = "red3",
+      color = "darkorchid3",
       linetype = "dashed",
       linewidth = 0.45
     ) +
@@ -215,17 +299,17 @@ plot_distribution <- function(score_data, output_dir) {
       data = highlights,
       ggplot2::aes(x = .data$failure_value, y = .data$label_y, label = .data$periodidchar),
       inherit.aes = FALSE,
-      color = "red3",
+      color = "darkorchid3",
       size = 2.7,
       hjust = -0.05
     ) +
     ggplot2::scale_color_manual(
-      values = c("Pre-2004" = "darkgreen", "Post-2004" = "navy"),
-      breaks = c("Pre-2004", "Post-2004")
+      values = c("1984b-2003a" = "darkgreen", "2003b-2024b" = "navy"),
+      breaks = c("1984b-2003a", "2003b-2024b")
     ) +
     ggplot2::scale_linetype_manual(
-      values = c("Pre-2004" = "solid", "Post-2004" = "longdash"),
-      breaks = c("Pre-2004", "Post-2004")
+      values = c("1984b-2003a" = "solid", "2003b-2024b" = "longdash"),
+      breaks = c("1984b-2003a", "2003b-2024b")
     ) +
     ggplot2::coord_cartesian(xlim = c(-1, 2.3), clip = "off") +
     ggplot2::labs(

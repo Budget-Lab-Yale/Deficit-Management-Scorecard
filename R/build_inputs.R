@@ -492,8 +492,17 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
       report_year = .data$report_year + 1L,
       report_half = .data$report_half,
       lag_surp_pgdp = .data$surplus_act / .data$pgdp,
-      lag_debt_pgdp = .data$debt_act / .data$pgdp,
-      lag_outgap_pgdp = .data$outgap * -0.01
+      lag_debt_pgdp = .data$debt_act / .data$pgdp
+    )
+
+  # The output-gap lag must come from the quarterly series, not from report
+  # rows: half-years with no fiscal report (2022b) still have to serve as the
+  # lag source for the following year's report (2023b).
+  lag_outgap_lookup <- outgap |>
+    dplyr::transmute(
+      report_year = .data$report_year + 1L,
+      report_half = .data$report_half,
+      lag_outgap_pgdp = -0.01 * .data$outgap
     )
 
   leg_full <- by_period |>
@@ -505,6 +514,7 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
       surplus_ewtd = .data$revenue_ewtd - .data$outlays_ewtd
     ) |>
     checked_left_join(lag_same_half, c("report_year", "report_half"), "period data", "lagged actuals") |>
+    checked_left_join(lag_outgap_lookup, c("report_year", "report_half"), "period data", "lagged outgap") |>
     dplyr::select(
       report_year, report_half, outgap, surplus, surplus_exp, surplus_ewtd,
       revenue, outlays, lag_outgap_pgdp, surplus_exp_ewtd, surplus_exp_cur
