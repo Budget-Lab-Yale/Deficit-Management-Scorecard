@@ -5,7 +5,7 @@ suppressPackageStartupMessages({
 args <- commandArgs(trailingOnly = TRUE)
 repkit_index <- match("--repkit", args)
 if (is.na(repkit_index) || repkit_index == length(args)) {
-  stop("Usage: Rscript scripts/bootstrap_inputs.R --repkit ../final_repkit/final_repkit", call. = FALSE)
+  stop("Usage: Rscript scripts/bootstrap_inputs.R --repkit ../final_repkit", call. = FALSE)
 }
 
 repkit <- normalizePath(args[[repkit_index + 1]], mustWork = FALSE)
@@ -37,4 +37,3 @@ for (i in seq_len(nrow(manifest))) {
 }
 
 cat(sprintf("Copied %s input files into %s\n", nrow(manifest), input_dir))
-

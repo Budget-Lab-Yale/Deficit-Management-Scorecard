@@ -6,8 +6,12 @@ National Tax Journal paper and is designed to be updated as new CBO budget
 reports arrive.
 
 The pipeline rebuilds the empirical "unified" scorecard used for website
-publication, including updated versions of the Appendix Figure A-1
-debt-GDP-change scatter and scorecard distribution from the replication kit. It
+publication. The benchmark uses the prior report's projected debt-GDP change
+over 1984b-2003b, with 2004a-2024b as the later historical comparison era. See
+[`docs/empirical_scorecard_specification.md`](docs/empirical_scorecard_specification.md)
+for the full specification and the documented divergence from the unchanged
+author Stata repkit. The pipeline produces updated versions of the Appendix
+Figure A-1 debt-GDP-change scatter and scorecard distribution. It
 also builds the forward-looking deficit-reduction table by applying a fixed
 fiscal-feedback parameter from the paper (`c = 0.19`) to the February 2026 CBO
 baseline. The forward-looking Monte Carlo simulation that estimates `c*` is now
@@ -36,7 +40,8 @@ Git. Do not commit files under `data-raw/`, `data/`, or `output/`.
 ## Requirements
 
 R (developed on 4.3) with CRAN packages: `dplyr`, `tidyr`, `tibble`, `readr`,
-`readxl`, `ggplot2`, `testthat`. There is no dependency lockfile; if you need
+`readxl`, `ggplot2`, `sandwich`, `testthat`. The optional Stata-data parity
+test uses `haven`. There is no dependency lockfile; if you need
 to reproduce a specific set of published numbers later, record the package
 versions (`sessionInfo()`) alongside the outputs.
 
@@ -45,7 +50,7 @@ versions (`sessionInfo()`) alongside the outputs.
 From this repository:
 
 ```sh
-Rscript scripts/bootstrap_inputs.R --repkit ../final_repkit/final_repkit
+Rscript scripts/bootstrap_inputs.R --repkit ../final_repkit
 Rscript scripts/run_pipeline.R
 Rscript -e "testthat::test_dir('tests/testthat')"
 ```
@@ -65,6 +70,7 @@ Generated outputs include:
 - `data/processed/dataset_for_regression_26.rds`
 - `data/processed/dataset_for_regression_26__techcustomdutiesinleg.rds`
 - `output/scorecard_unified.csv`
+- `output/empirical_regression_summary.csv`
 - `output/forward_deficit_reduction_table.csv` (published, `c = 0.19`)
 - `output/forward_table_detail.csv`
 - `output/panel_b_deficit_reduction.tex`
@@ -117,16 +123,19 @@ When a new CBO budget outlook arrives:
 ## Validation
 
 The tests check input availability, observation coverage through `2026a`, the
-pre-2004 unified coefficient, the presence of highlighted 2025-2026 periods, the
-ordering of the current largest deviation, the c\* simulation (calibration,
+39-observation 1984b-2003b benchmark, the prior-report unified coefficient,
+the 2003b/2004a era boundary, the 1996 potential-GDP value, the restored 2023b
+control, the presence of highlighted 2025-2026 periods, and parity with the
+author-supplied Stata dataset where the specifications overlap. They also check
+the ordering of the current largest deviation and the c\* simulation (calibration,
 path construction, recursion, and the 2026 boundary result), and golden
 reference values for the published scorecard and forward-table numbers. Several
 tests read pipeline outputs, so run `scripts/run_pipeline.R` first (they skip
 cleanly if outputs are absent). For visual parity, compare the generated PDFs
 against the replication-kit Stata outputs:
 
-- `../final_repkit/final_repkit/out/prod/residuals_basefit_1984b2026a_nozlb_new_updated_debt.pdf`
-- `../final_repkit/final_repkit/out/prod/fig3_distribution_residuals_new_updated_kunits_10_debt.pdf`
+- `../final_repkit/out/prod/residuals_basefit_1984b2026a_nozlb_new_updated_debt.pdf`
+- `../final_repkit/out/prod/fig3_distribution_residuals_new_updated_kunits_10_debt.pdf`
 
 ## Non-Goals
 

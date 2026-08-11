@@ -19,7 +19,7 @@ The repo is a lightweight R project, not a formal package. It already builds the
 
 Relevant current files:
 
-- `scripts/bootstrap_inputs.R`: copies required source files from `../final_repkit/final_repkit` into ignored `data-raw/`.
+- `scripts/bootstrap_inputs.R`: copies required source files from `../final_repkit` into ignored `data-raw/`.
 - `scripts/run_pipeline.R`: rebuilds processed data, appendix-style figures, scorecard CSV, and the fixed-`c` forward table.
 - `R/forward_table.R`: builds the current 2026 deterministic forward table using an assumed `c`.
 - `config/input_manifest.csv`: tracked source manifest; needs to be extended for the c-star inputs.
@@ -31,7 +31,7 @@ Do not replace the fixed-`c` pathway immediately. Add the c-star path beside it,
 
 These Stata files define the source behavior to port:
 
-- `../final_repkit/final_repkit/do/m1_sims_inputs.do`
+- `../final_repkit/do/m1_sims_inputs.do`
   - Builds AR inputs and shock calibration.
   - Uses `dta/historicaldebtevolution_cleaned_updated_26.dta`.
   - Estimates `rho = rminusg / (1 + g_nom)` and `b = debt / gdp`.
@@ -39,36 +39,36 @@ These Stata files define the source behavior to port:
   - Stores the RMSE from that regression as `s_u_hat_risk`. **This is the input we actually need from `m1`.**
   - Computes `e_s_size = ((b_2020 - b_2019) + (b_2014 - b_2007)) / 2`, where `b = debt / potential_gdp` after merging `Annual_FY_June2024.csv`. **This computed value is written to `sims_inputs` (matrix column 7) but is never read by any simulation** — the masters override it with a hardcoded `0.25`. Treat the formula as documentation only.
   - The `restricted` indicator and the constrained `rho_lhs` regression in `m1` feed only the AR table / plot shading, not `s_u_hat_risk`. Ignore them for calibration.
-- `../final_repkit/final_repkit/do/m0_prepare_cbo_data_scorecard24.do`
+- `../final_repkit/do/m0_prepare_cbo_data_scorecard24.do`
   - Builds `dta/cbo_paths_2024.dta`.
   - Reads `raw/cbo/51119-2024-03-LTBO-budget.xlsx`.
   - Reads previous-year 2023 debt and debt/GDP from `raw/cbo/51134-2024-02-Historical-Budget-Data.xlsx`.
   - Keeps `year`, `b_cbo`, `rho_cbo`, `s_cbo`, `m_cbo`, and `gdp`.
-- `../final_repkit/final_repkit/do/m0_prepare_cbo_data_scorecard25.do`
+- `../final_repkit/do/m0_prepare_cbo_data_scorecard25.do`
   - Builds `dta/cbo_paths25.dta`.
   - Reads `raw/cbo/51119-2025-03-LTBO-budget.xlsx`.
   - Reads previous-year 2024 debt and debt/GDP from `raw/cbo/51134-2025-01-Historical-Budget-Data.xlsx`.
   - Keeps `s_tot_cbo` in addition to the 2024 variables.
-- `../final_repkit/final_repkit/do/m0_prepare_cbo_data_scorecard26.do`
+- `../final_repkit/do/m0_prepare_cbo_data_scorecard26.do`
   - Builds `dta/cbo_paths26.dta`.
   - Reads `raw/cbo/51119-2026-02-LTBO-Budget.xlsx`, sheet `Supplemental Table 1`, range `A9:P40`.
   - Reads previous-year 2025 debt and debt/GDP from `raw/cbo/51134-2026-02-Historical-Budget-Data.xlsx`.
   - Computes `rho_cbo = (i - g) / (1 + g)`, `m_cbo = (debtchange - primarydeficit - interest) / gdp`, and extends each path to 103 model years.
-- `../final_repkit/final_repkit/do/m0_programs_scorecard24.do`, `m0_programs_scorecard25.do`, `m0_programs_scorecard26.do`
+- `../final_repkit/do/m0_programs_scorecard24.do`, `m0_programs_scorecard25.do`, `m0_programs_scorecard26.do`
   - Define `sim_full_cbo`.
   - Use fixed parameters `beta_1 = 0.576`, `beta_2 = 0.00848`, `lambda = 0.02`, `periods = 100`, `obs = 103`, `last_period = 101`.
   - Generate annual shocks `e_u ~ N(0, s_u)` and `e_s = e_s_size * Poisson(lambda)`.
   - Simulate deterministic, stochastic no-feedback, and feedback paths.
-- `../final_repkit/final_repkit/do/m2_sims_master_scorecard24.do`
+- `../final_repkit/do/m2_sims_master_scorecard24.do`
   - Runs 2024 LTBO deterministic simulations at `c = 0` and `c = 0.18`.
   - Runs risk simulations with 1,000 reps for `c = 0`, `0.17`, `0.18`, and `0.19`.
-- `../final_repkit/final_repkit/do/m2_sims_master_scorecard25.do`
+- `../final_repkit/do/m2_sims_master_scorecard25.do`
   - Runs 2025 deterministic simulations at `c = 0` and `c = 0.18`.
   - Runs risk simulations with 5,000 reps for `c = 0`, `0.17`, `0.18`, and `0.19`.
-- `../final_repkit/final_repkit/do/m2_sims_master_scorecard26.do`
+- `../final_repkit/do/m2_sims_master_scorecard26.do`
   - Runs 2026 deterministic simulations at `c = 0` and `c = 0.19`.
   - Runs risk simulations with 1,000 reps for `c = 0`, `0.18`, `0.19`, and `0.20`.
-- `../final_repkit/final_repkit/do/m3_exhibits_prod_scorecard26.do`
+- `../final_repkit/do/m3_exhibits_prod_scorecard26.do`
   - Discovers available c-grid files.
   - Computes `c*` as the first `c` with share of terminal debt paths below `2.5` greater than or equal to `0.95`.
   - Uses `model_year == 101` as the terminal simulation point.
@@ -474,7 +474,7 @@ Add focused `testthat` coverage:
 Recommended command sequence:
 
 ```sh
-Rscript scripts/bootstrap_inputs.R --repkit ../final_repkit/final_repkit
+Rscript scripts/bootstrap_inputs.R --repkit ../final_repkit
 Rscript scripts/run_pipeline.R
 Rscript scripts/run_cstar_simulation.R
 Rscript -e "testthat::test_dir('tests/testthat')"

@@ -15,22 +15,34 @@ test_that("scorecard highlight values match the February 2026 golden reference",
   scorecard <- read_output_csv("scorecard_unified.csv")
   pick <- function(label, col) scorecard[[col]][scorecard$period_label == label]
 
-  expect_equal(pick("2026a", "failure_value"), 0.307925, tolerance = 1e-4)
+  # The unified scorecard uses the prior report's projected debt change and a
+  # 1984b-2003b benchmark. Percentiles use historical reference observations
+  # only: 39 in the first era and 21 in the later era.
+  expect_equal(pick("2026a", "failure_value"), 0.501300, tolerance = 1e-4)
   expect_equal(pick("2026a", "actual_deficit_reduction"), -0.030125, tolerance = 1e-4)
-  expect_equal(pick("2026a", "predicted_deficit_reduction"), 0.277800, tolerance = 1e-4)
-  expect_equal(pick("2026a", "percentile_all"), 0.781250, tolerance = 1e-4)
-  # The secondary-era comparison pool is 2003b-2024b (22 obs): the rep kit's
-  # density code started at 2004b, contradicting the paper's stated 2004a start;
-  # we additionally fold in the straddling 2003b observation (pending
-  # confirmation with Yagan); and 2023b rejoined both pools once its
-  # lagged-output-gap lookup was fixed to draw on the quarterly series.
-  # 14 of 22 values fall at or below 2026a's.
-  expect_equal(pick("2026a", "percentile_post_2004"), 0.636364, tolerance = 1e-4)
+  expect_equal(pick("2026a", "predicted_deficit_reduction"), 0.471175, tolerance = 1e-4)
+  expect_equal(pick("2026a", "percentile_historical"), 0.900000, tolerance = 1e-9)
+  expect_equal(pick("2026a", "percentile_later_era"), 0.761905, tolerance = 1e-4)
 
-  expect_equal(pick("2025b", "failure_value"), 1.778613, tolerance = 1e-4)
-  expect_equal(pick("2025b", "percentile_all"), 1.0, tolerance = 1e-9)
-  expect_equal(pick("2025b*", "failure_value"), 0.672320, tolerance = 1e-4)
-  expect_equal(pick("2025a", "failure_value"), 0.359422, tolerance = 1e-4)
+  expect_equal(pick("2025b", "failure_value"), 1.959554, tolerance = 1e-4)
+  expect_equal(pick("2025b", "percentile_historical"), 1.0, tolerance = 1e-9)
+  expect_equal(pick("2025b*", "failure_value"), 0.853261, tolerance = 1e-4)
+  expect_equal(pick("2025b*", "percentile_historical"), 0.966667, tolerance = 1e-4)
+  expect_equal(pick("2025a", "failure_value"), 0.622166, tolerance = 1e-4)
+  expect_equal(pick("2025a", "percentile_historical"), 0.900000, tolerance = 1e-9)
+})
+
+test_that("empirical regression summary matches the resolved specification", {
+  rows <- read_output_csv("empirical_regression_summary.csv")
+  standard <- rows[rows$specification == "standard_projected_surplus", ]
+  unified <- rows[rows$specification == "unified_prior_report_debt_change", ]
+
+  expect_equal(standard$observations, 39)
+  expect_equal(standard$feedback_coefficient, -0.1436693, tolerance = 1e-6)
+  expect_equal(standard$feedback_robust_se, 0.0324377, tolerance = 1e-6)
+  expect_equal(unified$observations, 39)
+  expect_equal(unified$feedback_coefficient, 0.1762817, tolerance = 1e-6)
+  expect_equal(unified$feedback_robust_se, 0.0401087, tolerance = 1e-6)
 })
 
 test_that("forward table values match the February 2026 golden reference (c = 0.19)", {

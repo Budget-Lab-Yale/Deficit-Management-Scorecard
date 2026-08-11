@@ -22,6 +22,17 @@ scorecard_latest_periodid <- function(vintage = scorecard_vintage()) {
   as.integer(vintage$latest_report_year * 100L + vintage$latest_report_half)
 }
 
+# Canonical empirical samples. The first era includes 2003b, as agreed in the
+# author correspondence; the later historical comparison begins at 2004a.
+scorecard_periods <- function() {
+  list(
+    first_era_start = 198402L,
+    first_era_end = 200302L,
+    later_era_start = 200401L,
+    later_era_end = 202402L
+  )
+}
+
 read_pgdp <- function(input_dir) {
   path <- file.path(input_dir, scorecard_vintage()$pgdp_csv)
   assert_files_exist(path)
@@ -259,11 +270,6 @@ apply_report_timing_adjustments <- function(data) {
         .data$report_month == 5L & .data$report_year == 2022L,
         1L,
         .data$report_half_final
-      ),
-      report_year = dplyr::if_else(
-        .data$report_month == 12L & .data$report_year == 1995L,
-        .data$report_year + 1L,
-        .data$report_year
       )
     )
 
@@ -323,6 +329,16 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
       .groups = "drop"
     ) |>
     dplyr::filter(!is.na(.data$report_month), !is.na(.data$budget_line), .data$budget_line != "") |>
+    # Reassign the December 1995 outlook before joining annual potential GDP.
+    # Joining first would leave that row carrying 1995 PGDP after it becomes a
+    # 1996 report, which was the source-code error corrected in the July 28 kit.
+    dplyr::mutate(
+      report_year = dplyr::if_else(
+        .data$report_month == 12L & .data$report_year == 1995L,
+        .data$report_year + 1L,
+        .data$report_year
+      )
+    ) |>
     checked_left_join(pgdp, "report_year", "aggregate CBO data", "pgdp") |>
     dplyr::mutate(report_half = dplyr::if_else(.data$report_month <= 6L, 1L, 2L)) |>
     add_report_weights() |>
@@ -345,12 +361,15 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
     )
 
   deficits <- aggregate_data |>
-    dplyr::arrange(.data$report_year) |>
+    dplyr::arrange(.data$report_year, .data$report_month) |>
     dplyr::filter(.data$budget_line == "def") |>
     dplyr::group_by(.data$report_year, .data$report_half_final, .data$change_type, .data$budget_line) |>
     dplyr::summarise(
+      # Stata's `collapse (last) t* pgdp-w_t5` takes the latest report's weights
+      # (not the mean across reports), so a March+August half carries the pure
+      # August weight vector into the deficit-projection variables.
       dplyr::across(dplyr::all_of(t_cols), dplyr::last),
-      dplyr::across(dplyr::all_of(mean_cols), ~ mean(.x, na.rm = TRUE)),
+      dplyr::across(dplyr::all_of(mean_cols), dplyr::last),
       .groups = "drop"
     ) |>
     dplyr::mutate(
@@ -618,17 +637,31 @@ build_dataset_for_regression <- function(merged_budget) {
       dataset[[paste0("deltabexp_t", i)]]
   }
 
+  periods <- scorecard_periods()
+
   dataset |>
     dplyr::mutate(
       deltabexp_t0_t4 = (.data$bexp_t4 - .data$b_lag_1) / 5,
       lag_outgap_pgdp2 = .data$lag_outgap_pgdp^2,
       lag_outgap_pgdp3 = .data$lag_outgap_pgdp^3,
       lag_outgap_pgdp4 = .data$lag_outgap_pgdp^4,
-      periodid = as.integer(.data$report_year * 100L + .data$report_half),
-      sample_1 = .data$periodid >= 198402L & .data$periodid <= 200301L,
-      sample_2 = .data$periodid >= 200401L & .data$periodid <= scorecard_latest_periodid() & .data$periodid != 202002L
+      periodid = as.integer(.data$report_year * 100L + .data$report_half)
     ) |>
-    dplyr::arrange(.data$report_year, .data$report_half)
+    dplyr::arrange(.data$report_year, .data$report_half) |>
+    dplyr::mutate(
+      # Congress's action in a report interval is graded against the outlook
+      # available at the prior CBO report, not the report that already embeds
+      # that action.
+      lag_deltabexp_t0_t4 = dplyr::lag(.data$deltabexp_t0_t4),
+      sample_1 = dplyr::between(
+        .data$periodid,
+        periods$first_era_start,
+        periods$first_era_end
+      ),
+      sample_2 = .data$periodid >= periods$later_era_start &
+        .data$periodid <= scorecard_latest_periodid() &
+        .data$periodid != 202002L
+    )
 }
 
 build_all_datasets <- function(input_dir) {

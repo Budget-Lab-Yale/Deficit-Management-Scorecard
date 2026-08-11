@@ -34,7 +34,7 @@ assert_no_missing(
       .data$periodid <= scorecard_latest_periodid(),
       .data$periodid != 202002L
     ),
-  c("surplus", "deltabexp_t0_t4", "lag_outgap_pgdp"),
+  c("surplus", "lag_deltabexp_t0_t4", "lag_outgap_pgdp"),
   "main regression dataset"
 )
 
@@ -45,6 +45,7 @@ score <- prepare_scorecard_data(datasets$main, datasets$alternative)
 saveRDS(score, file.path(processed_dir, "scorecard_unified.rds"))
 
 scorecard <- write_scorecard_outputs(score$data, output_dir)
+regression_summary <- write_empirical_regression_summary(datasets$main, score$model, output_dir)
 plot_scatter(score$data, output_dir)
 plot_distribution(score$data, output_dir)
 plot_distribution_histogram(score$data, output_dir)
@@ -58,6 +59,7 @@ saveRDS(forward, file.path(processed_dir, "forward_table.rds"))
 forward_rows <- write_forward_table_outputs(forward, output_dir)
 
 cat(sprintf("Wrote %s scorecard rows to %s\n", nrow(scorecard), file.path(output_dir, "scorecard_unified.csv")))
+cat(sprintf("Wrote %s empirical regression rows to %s\n", nrow(regression_summary), file.path(output_dir, "empirical_regression_summary.csv")))
 cat(sprintf("Wrote %s forward table rows to %s with c = %.2f (published, paper-aligned)\n", nrow(forward_rows), file.path(output_dir, "forward_deficit_reduction_table.csv"), forward_c_value))
 
 # Forward-looking c-star simulation (diagnostic). The published forward table

@@ -20,18 +20,35 @@ add_period_fields <- function(data) {
 }
 
 prepare_scorecard_data <- function(main_data, alternative_data) {
+  periods <- scorecard_periods()
+
   base_data <- main_data |>
     add_period_fields() |>
-    dplyr::filter(dplyr::between(.data$periodid, 198402L, scorecard_latest_periodid()), .data$periodid != 202002L, !.data$zlb) |>
+    dplyr::filter(
+      dplyr::between(.data$periodid, periods$first_era_start, scorecard_latest_periodid()),
+      .data$periodid != 202002L,
+      !.data$zlb
+    ) |>
     dplyr::mutate(
       surplus = 100 * .data$surplus,
-      deltabexp_t0_t4 = 100 * .data$deltabexp_t0_t4,
+      lag_deltabexp_t0_t4 = 100 * .data$lag_deltabexp_t0_t4,
       lag_outgap_pgdp = 100 * .data$lag_outgap_pgdp,
-      base = dplyr::between(.data$periodid, 198402L, 200301L)
+      base = dplyr::between(
+        .data$periodid,
+        periods$first_era_start,
+        periods$first_era_end
+      )
     ) |>
-    dplyr::filter(!is.na(.data$surplus), !is.na(.data$deltabexp_t0_t4), !is.na(.data$lag_outgap_pgdp))
+    dplyr::filter(
+      !is.na(.data$surplus),
+      !is.na(.data$lag_deltabexp_t0_t4),
+      !is.na(.data$lag_outgap_pgdp)
+    )
 
-  model <- lm(surplus ~ deltabexp_t0_t4 + lag_outgap_pgdp, data = dplyr::filter(base_data, .data$base))
+  model <- lm(
+    surplus ~ lag_deltabexp_t0_t4 + lag_outgap_pgdp,
+    data = dplyr::filter(base_data, .data$base)
+  )
 
   alt_2025b <- alternative_data |>
     add_period_fields() |>
@@ -39,7 +56,7 @@ prepare_scorecard_data <- function(main_data, alternative_data) {
     dplyr::slice(1) |>
     dplyr::mutate(
       surplus = 100 * .data$surplus,
-      deltabexp_t0_t4 = 100 * .data$deltabexp_t0_t4,
+      lag_deltabexp_t0_t4 = 100 * .data$lag_deltabexp_t0_t4,
       lag_outgap_pgdp = 100 * .data$lag_outgap_pgdp,
       periodid = 202503L,
       periodidchar = "2025b*",
@@ -55,22 +72,86 @@ prepare_scorecard_data <- function(main_data, alternative_data) {
       residual = .data$surplus - .data$predicted,
       failure_value = .data$predicted - .data$surplus,
       group = dplyr::case_when(
-        dplyr::between(.data$periodid, 198402L, 200301L) ~ "pre_2004",
-        dplyr::between(.data$periodid, 200302L, 202402L) ~ "post_2004",
+        dplyr::between(
+          .data$periodid,
+          periods$first_era_start,
+          periods$first_era_end
+        ) ~ "first_era",
+        dplyr::between(
+          .data$periodid,
+          periods$later_era_start,
+          periods$later_era_end
+        ) ~ "later_era",
         .data$periodid == 202501L ~ "highlight_2025a",
         .data$periodid == 202502L ~ "highlight_2025b",
         .data$periodid == 202503L ~ "highlight_2025b_star",
         .data$periodid == 202601L ~ "highlight_2026a",
         TRUE ~ "other"
-      ),
-      percentile_all = stats::ecdf(.data$failure_value)(.data$failure_value),
-      percentile_post_2004 = {
-        post_values <- .data$failure_value[.data$group == "post_2004"]
-        vapply(.data$failure_value, function(x) mean(post_values <= x, na.rm = TRUE), numeric(1))
-      }
+      )
+    )
+
+  first_values <- score_data$failure_value[score_data$group == "first_era"]
+  later_values <- score_data$failure_value[score_data$group == "later_era"]
+  historical_values <- c(first_values, later_values)
+  percentile_against <- function(values, reference) {
+    vapply(values, function(x) mean(reference <= x, na.rm = TRUE), numeric(1))
+  }
+
+  score_data <- score_data |>
+    dplyr::mutate(
+      percentile_first_era = percentile_against(.data$failure_value, first_values),
+      percentile_later_era = percentile_against(.data$failure_value, later_values),
+      percentile_historical = percentile_against(.data$failure_value, historical_values),
+      # Backward-compatible output names. Both now use fixed historical
+      # reference pools and never rank highlights against themselves.
+      percentile_all = .data$percentile_historical,
+      percentile_post_2004 = .data$percentile_later_era
     )
 
   list(data = score_data, model = model)
+}
+
+build_empirical_regression_summary <- function(main_data, unified_model) {
+  standard_data <- main_data |>
+    dplyr::filter(.data$sample_1) |>
+    dplyr::transmute(
+      surplus = 100 * .data$surplus,
+      surplus_exp = 100 * .data$surplus_exp,
+      lag_outgap_pgdp = 100 * .data$lag_outgap_pgdp
+    )
+  standard_model <- lm(
+    surplus ~ surplus_exp + lag_outgap_pgdp,
+    data = standard_data
+  )
+
+  summarize_model <- function(model, specification, feedback_term) {
+    robust_se <- sqrt(diag(sandwich::vcovHC(model, type = "HC1")))
+    estimates <- stats::coef(model)
+    feedback_coefficient <- unname(estimates[[feedback_term]])
+    feedback_robust_se <- unname(robust_se[[feedback_term]])
+    tibble::tibble(
+      specification = specification,
+      feedback_term = feedback_term,
+      observations = stats::nobs(model),
+      feedback_coefficient = feedback_coefficient,
+      feedback_robust_se = feedback_robust_se,
+      feedback_t_statistic = feedback_coefficient / feedback_robust_se,
+      output_gap_coefficient = unname(estimates[["lag_outgap_pgdp"]]),
+      output_gap_robust_se = unname(robust_se[["lag_outgap_pgdp"]]),
+      r_squared = summary(model)$r.squared
+    )
+  }
+
+  dplyr::bind_rows(
+    summarize_model(standard_model, "standard_projected_surplus", "surplus_exp"),
+    summarize_model(unified_model, "unified_prior_report_debt_change", "lag_deltabexp_t0_t4")
+  )
+}
+
+write_empirical_regression_summary <- function(main_data, unified_model, output_dir) {
+  summary_rows <- build_empirical_regression_summary(main_data, unified_model)
+  readr::write_csv(summary_rows, file.path(output_dir, "empirical_regression_summary.csv"))
+  summary_rows
 }
 
 residualize_on_outgap <- function(data, value_col) {
@@ -85,13 +166,16 @@ residualize_on_outgap <- function(data, value_col) {
 make_scatter_plot_data <- function(score_data) {
   plot_data <- score_data |>
     residualize_on_outgap("surplus") |>
-    residualize_on_outgap("deltabexp_t0_t4")
+    residualize_on_outgap("lag_deltabexp_t0_t4")
 
-  fit <- lm(surplus_resid ~ deltabexp_t0_t4_resid, data = dplyr::filter(plot_data, .data$base))
+  fit <- lm(
+    surplus_resid ~ lag_deltabexp_t0_t4_resid,
+    data = dplyr::filter(plot_data, .data$base)
+  )
   line_data <- tibble::tibble(
-    deltabexp_t0_t4_resid = seq(
-      min(plot_data$deltabexp_t0_t4_resid, na.rm = TRUE),
-      max(plot_data$deltabexp_t0_t4_resid, na.rm = TRUE),
+    lag_deltabexp_t0_t4_resid = seq(
+      min(plot_data$lag_deltabexp_t0_t4_resid, na.rm = TRUE),
+      max(plot_data$lag_deltabexp_t0_t4_resid, na.rm = TRUE),
       length.out = 100
     )
   )
@@ -112,6 +196,9 @@ write_scorecard_outputs <- function(score_data, output_dir) {
       predicted_deficit_reduction = .data$predicted,
       failure_value = .data$failure_value,
       group = .data$group,
+      percentile_first_era = .data$percentile_first_era,
+      percentile_later_era = .data$percentile_later_era,
+      percentile_historical = .data$percentile_historical,
       percentile_all = .data$percentile_all,
       percentile_post_2004 = .data$percentile_post_2004
     ) |>
@@ -122,12 +209,13 @@ write_scorecard_outputs <- function(score_data, output_dir) {
 }
 
 plot_scatter <- function(score_data, output_dir) {
+  periods <- scorecard_periods()
   plot_parts <- make_scatter_plot_data(score_data)
   points <- plot_parts$points |>
     dplyr::mutate(
       plot_group = dplyr::case_when(
-        dplyr::between(.data$periodid, 198402L, 200301L) ~ "Pre-2004",
-        dplyr::between(.data$periodid, 200302L, 202402L) ~ "Post-2004",
+        dplyr::between(.data$periodid, periods$first_era_start, periods$first_era_end) ~ "1984b-2003b",
+        dplyr::between(.data$periodid, periods$later_era_start, periods$later_era_end) ~ "2004a-2024b",
         dplyr::between(.data$periodid, 202501L, 202503L) | .data$periodid == 202601L ~ "Highlighted",
         TRUE ~ NA_character_
       )
@@ -135,13 +223,13 @@ plot_scatter <- function(score_data, output_dir) {
     dplyr::filter(!is.na(.data$plot_group))
   line <- plot_parts$line
 
-  colors <- c("Pre-2004" = "darkgreen", "Post-2004" = "navy", "Highlighted" = "darkorchid3")
-  plot <- ggplot2::ggplot(points, ggplot2::aes(x = .data$deltabexp_t0_t4_resid, y = .data$surplus_resid)) +
+  colors <- c("1984b-2003b" = "darkgreen", "2004a-2024b" = "navy", "Highlighted" = "darkorchid3")
+  plot <- ggplot2::ggplot(points, ggplot2::aes(x = .data$lag_deltabexp_t0_t4_resid, y = .data$surplus_resid)) +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25) +
     ggplot2::geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.25) +
     ggplot2::geom_line(
       data = line,
-      ggplot2::aes(x = .data$deltabexp_t0_t4_resid, y = .data$surplus_resid),
+      ggplot2::aes(x = .data$lag_deltabexp_t0_t4_resid, y = .data$surplus_resid),
       inherit.aes = FALSE,
       color = "darkgreen",
       linewidth = 0.5
@@ -154,16 +242,16 @@ plot_scatter <- function(score_data, output_dir) {
       show.legend = FALSE
     ) +
     ggplot2::scale_color_manual(values = colors) +
-    ggplot2::coord_cartesian(xlim = c(-2, 4), ylim = c(-1.75, 1), clip = "off") +
+    ggplot2::coord_cartesian(xlim = c(-3, 4), ylim = c(-1.75, 1), clip = "off") +
     ggplot2::labs(
-      x = "CBO's projected debt-GDP ratio change as of last period (pp of GDP)",
+      x = "CBO's projected debt-GDP ratio change as of last period (percentage points of GDP)",
       y = "Congress's deficit reduction this period (% of GDP)"
     ) +
     ggplot2::theme_minimal(base_size = 10) +
     ggplot2::theme(
       legend.position = "none",
       panel.grid.minor = ggplot2::element_blank(),
-      plot.margin = ggplot2::margin(10, 20, 10, 10)
+      plot.margin = ggplot2::margin(10, 20, 10, 18)
     )
 
   ggplot2::ggsave(
@@ -184,9 +272,9 @@ plot_scatter <- function(score_data, output_dir) {
 plot_distribution_histogram <- function(score_data, output_dir) {
   binwidth <- 0.25
   hist_data <- score_data |>
-    dplyr::filter(.data$group %in% c("pre_2004", "post_2004")) |>
+    dplyr::filter(.data$group %in% c("first_era", "later_era")) |>
     dplyr::mutate(
-      group_label = dplyr::if_else(.data$group == "pre_2004", "1984b-2003a", "2003b-2024b"),
+      group_label = dplyr::if_else(.data$group == "first_era", "1984b-2003b", "2004a-2024b"),
       bin = floor(.data$failure_value / binwidth) * binwidth
     ) |>
     dplyr::count(.data$group_label, .data$bin) |>
@@ -229,17 +317,17 @@ plot_distribution_histogram <- function(score_data, output_dir) {
       hjust = -0.05
     ) +
     ggplot2::scale_fill_manual(
-      values = c("1984b-2003a" = "darkgreen", "2003b-2024b" = "navy"),
-      breaks = c("1984b-2003a", "2003b-2024b")
+      values = c("1984b-2003b" = "darkgreen", "2004a-2024b" = "navy"),
+      breaks = c("1984b-2003b", "2004a-2024b")
     ) +
     ggplot2::scale_color_manual(
-      values = c("1984b-2003a" = "darkgreen", "2003b-2024b" = "navy"),
-      breaks = c("1984b-2003a", "2003b-2024b")
+      values = c("1984b-2003b" = "darkgreen", "2004a-2024b" = "navy"),
+      breaks = c("1984b-2003b", "2004a-2024b")
     ) +
     ggplot2::coord_cartesian(xlim = c(-1, 2.3), clip = "off") +
     ggplot2::labs(
       x = "Deficit increase relative to pre-2004-based prediction (% of GDP)",
-      y = sprintf("%% of observations per %.2f-wide bin", binwidth),
+      y = sprintf("%% of observations per %.2f percentage-point bin", binwidth),
       fill = NULL,
       color = NULL
     ) +
@@ -247,7 +335,7 @@ plot_distribution_histogram <- function(score_data, output_dir) {
     ggplot2::theme(
       legend.position = "bottom",
       panel.grid.minor = ggplot2::element_blank(),
-      plot.margin = ggplot2::margin(10, 20, 10, 10)
+      plot.margin = ggplot2::margin(10, 20, 10, 18)
     )
 
   ggplot2::ggsave(
@@ -272,8 +360,8 @@ plot_distribution <- function(score_data, output_dir) {
   }
 
   plot_data <- dplyr::bind_rows(
-    density_data(score_data$failure_value[score_data$group == "pre_2004"], "1984b-2003a"),
-    density_data(score_data$failure_value[score_data$group == "post_2004"], "2003b-2024b")
+    density_data(score_data$failure_value[score_data$group == "first_era"], "1984b-2003b"),
+    density_data(score_data$failure_value[score_data$group == "later_era"], "2004a-2024b")
   )
   highlights <- score_data |>
     dplyr::filter(.data$periodidchar %in% c("2025a", "2025b", "2025b*", "2026a")) |>
@@ -304,17 +392,17 @@ plot_distribution <- function(score_data, output_dir) {
       hjust = -0.05
     ) +
     ggplot2::scale_color_manual(
-      values = c("1984b-2003a" = "darkgreen", "2003b-2024b" = "navy"),
-      breaks = c("1984b-2003a", "2003b-2024b")
+      values = c("1984b-2003b" = "darkgreen", "2004a-2024b" = "navy"),
+      breaks = c("1984b-2003b", "2004a-2024b")
     ) +
     ggplot2::scale_linetype_manual(
-      values = c("1984b-2003a" = "solid", "2003b-2024b" = "longdash"),
-      breaks = c("1984b-2003a", "2003b-2024b")
+      values = c("1984b-2003b" = "solid", "2004a-2024b" = "longdash"),
+      breaks = c("1984b-2003b", "2004a-2024b")
     ) +
     ggplot2::coord_cartesian(xlim = c(-1, 2.3), clip = "off") +
     ggplot2::labs(
       x = "Deficit increase relative to pre-2004-based prediction (% of GDP)",
-      y = "% of observations in smoothed x-axis bins of width 0.1",
+      y = "Approximate % of observations per 0.1 percentage-point bin",
       color = NULL,
       linetype = NULL
     ) +
@@ -322,7 +410,7 @@ plot_distribution <- function(score_data, output_dir) {
     ggplot2::theme(
       legend.position = "bottom",
       panel.grid.minor = ggplot2::element_blank(),
-      plot.margin = ggplot2::margin(10, 20, 10, 10)
+      plot.margin = ggplot2::margin(10, 20, 10, 18)
     )
 
   ggplot2::ggsave(
