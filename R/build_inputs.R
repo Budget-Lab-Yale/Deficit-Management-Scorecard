@@ -1,6 +1,6 @@
 # Single source of truth for the current CBO vintage. Update these fields
 # together each release (typically February and August). Filenames are paths
-# relative to the input directory (data-raw); latest_report_year/_half identify
+# relative to the input directory; latest_report_year/_half identify
 # the newest CBO report so the pipeline can assert that data and config agree.
 scorecard_vintage <- function() {
   list(
@@ -10,9 +10,9 @@ scorecard_vintage <- function() {
     pgdp_csv = file.path("historical", "Annual_FY_February2026.csv"),
     outgap_csv = file.path("historical", "Quarterly_February2026.csv"),
     historical_budget_xlsx = file.path("cbo", "51134-2026-02-Historical-Budget-Data.xlsx"),
-    omb_gdp_price_xlsx = file.path("historical", "hist10z1_fy2026.xlsx"),
-    revision_main_xlsx = "stata_import_file_2026_new.xlsx",
-    revision_alt_xlsx = "stata_import_file_2026_techcustomdutiesinleg.xlsx"
+    omb_gdp_price_csv = file.path("historical", "omb_fy2026_gdp_price_levels.csv"),
+    revision_main_csv = "cbo_revision_2026.csv",
+    revision_alt_csv = "cbo_revision_2026_tariffs_as_legislation.csv"
   )
 }
 
@@ -74,7 +74,8 @@ read_budget_vars <- function(input_dir, pgdp) {
   data <- readxl::read_excel(
     path,
     sheet = "1. Rev, Outlays, Surplus, Debt",
-    range = "A9:H72"
+    range = "A9:H72",
+    .name_repair = "unique_quiet"
   )
 
   debt_col <- names(data)[grepl("^Debt held by the public", names(data))]
@@ -96,13 +97,14 @@ read_budget_vars <- function(input_dir, pgdp) {
 read_historical_debt_evolution <- function(input_dir) {
   vintage <- scorecard_vintage()
   cbo_path <- file.path(input_dir, vintage$historical_budget_xlsx)
-  hist10_path <- file.path(input_dir, vintage$omb_gdp_price_xlsx)
-  assert_files_exist(c(cbo_path, hist10_path))
+  price_path <- file.path(input_dir, vintage$omb_gdp_price_csv)
+  assert_files_exist(c(cbo_path, price_path))
 
   debt <- readxl::read_excel(
     cbo_path,
     sheet = "1. Rev, Outlays, Surplus, Debt",
-    range = "A9:H73"
+    range = "A9:H73",
+    .name_repair = "unique_quiet"
   )
   debt_col <- names(debt)[grepl("^Debt held by the public", names(debt))]
   debt_year_col <- names(debt)[1]
@@ -115,7 +117,8 @@ read_historical_debt_evolution <- function(input_dir) {
   debt_gdp <- readxl::read_excel(
     cbo_path,
     sheet = "1a. Rev, Outlays, Surplus (GDP)",
-    range = "A9:H73"
+    range = "A9:H73",
+    .name_repair = "unique_quiet"
   )
   debt_gdp_col <- names(debt_gdp)[grepl("^Debt held by the public", names(debt_gdp))]
   debt_gdp_year_col <- names(debt_gdp)[1]
@@ -128,7 +131,8 @@ read_historical_debt_evolution <- function(input_dir) {
   interest <- readxl::read_excel(
     cbo_path,
     sheet = "3. Outlays",
-    range = "A9:F73"
+    range = "A9:F73",
+    .name_repair = "unique_quiet"
   )
   interest_col <- names(interest)[grepl("^Net interest", names(interest), ignore.case = TRUE)]
   interest_year_col <- names(interest)[1]
@@ -138,19 +142,23 @@ read_historical_debt_evolution <- function(input_dir) {
       interest = as.numeric(.data[[interest_col]])
     )
 
-  price_raw <- readxl::read_excel(hist10_path, range = "A6:C91")
-  price_cols <- names(price_raw)[1:3]
+  price_raw <- readr::read_csv(price_path, show_col_types = FALSE)
+  assert_required_columns(
+    price_raw,
+    c("year", "gdp_1962_dollars", "price_level_2017"),
+    "OMB GDP and price-level data"
+  )
   price <- price_raw |>
     dplyr::transmute(
-      year = suppressWarnings(as.integer(.data[[price_cols[[1]]]])),
-      gdp1962 = suppressWarnings(as.numeric(.data[[price_cols[[2]]]])),
-      pricelevel2017 = suppressWarnings(as.numeric(.data[[price_cols[[3]]]]))
+      year = as.integer(.data$year),
+      gdp1962 = as.numeric(.data$gdp_1962_dollars),
+      pricelevel2017 = as.numeric(.data$price_level_2017)
     ) |>
     dplyr::filter(!is.na(.data$year), dplyr::between(.data$year, 1962L, vintage$latest_report_year))
 
   base_2012 <- price$pricelevel2017[price$year == 2012]
   if (length(base_2012) != 1 || is.na(base_2012)) {
-    abort("Could not identify 2012 price-level base in hist10z1_fy2026.xlsx")
+    abort("Could not identify the 2012 price-level base in the OMB input")
   }
 
   price <- price |>
@@ -209,10 +217,10 @@ clean_description_vars <- function(data) {
     dplyr::select(-des_temp)
 }
 
-read_cbo_revision_workbook <- function(input_dir, filename) {
+read_cbo_revision_data <- function(input_dir, filename) {
   path <- file.path(input_dir, "cbo", filename)
   assert_files_exist(path)
-  raw <- readxl::read_excel(path, sheet = "CBO Data", range = "A5:AI3744")
+  raw <- readr::read_csv(path, show_col_types = FALSE)
   names(raw) <- tolower(names(raw))
   names(raw) <- gsub("\\+", "", names(raw))
 
@@ -329,9 +337,8 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
       .groups = "drop"
     ) |>
     dplyr::filter(!is.na(.data$report_month), !is.na(.data$budget_line), .data$budget_line != "") |>
-    # Reassign the December 1995 outlook before joining annual potential GDP.
-    # Joining first would leave that row carrying 1995 PGDP after it becomes a
-    # 1996 report, which was the source-code error corrected in the July 28 kit.
+  # Reassign the December 1995 outlook before joining annual potential GDP so
+  # the report uses the 1996 value after its year changes.
     dplyr::mutate(
       report_year = dplyr::if_else(
         .data$report_month == 12L & .data$report_year == 1995L,
@@ -365,9 +372,8 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
     dplyr::filter(.data$budget_line == "def") |>
     dplyr::group_by(.data$report_year, .data$report_half_final, .data$change_type, .data$budget_line) |>
     dplyr::summarise(
-      # Stata's `collapse (last) t* pgdp-w_t5` takes the latest report's weights
-      # (not the mean across reports), so a March+August half carries the pure
-      # August weight vector into the deficit-projection variables.
+      # When a half-year contains multiple reports, use the latest report's
+      # horizon values and weights.
       dplyr::across(dplyr::all_of(t_cols), dplyr::last),
       dplyr::across(dplyr::all_of(mean_cols), dplyr::last),
       .groups = "drop"
@@ -682,15 +688,15 @@ build_all_datasets <- function(input_dir) {
   }
 
   build_one <- function(filename) {
-    complete <- read_cbo_revision_workbook(input_dir, filename)
+    complete <- read_cbo_revision_data(input_dir, filename)
     leg <- build_leg_regression_data(complete, pgdp, budget_vars, outgap)
     merged <- build_merged_budget_data(leg$full, leg$baseline_def, historical, pgdp)
     build_dataset_for_regression(merged)
   }
 
   datasets <- list(
-    main = build_one(vintage$revision_main_xlsx),
-    alternative = build_one(vintage$revision_alt_xlsx)
+    main = build_one(vintage$revision_main_csv),
+    alternative = build_one(vintage$revision_alt_csv)
   )
 
   # Tripwire: the newest period in the data must match the configured vintage.

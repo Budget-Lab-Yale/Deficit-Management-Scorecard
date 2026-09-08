@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using this metadata."
+title: "Deficit Management Scorecard"
+type: software
+authors:
+  - name: "The Budget Lab at Yale"
+repository-code: "https://github.com/Budget-Lab-Yale/Deficit-Scorecard"
+abstract: >-
+  R code and bundled source inputs for The Budget Lab's Deficit Management
+  Scorecard, including the empirical scorecard, publication figures, and the
+  fixed-feedback forward deficit table.
+keywords:
+  - fiscal policy
+  - federal budget
+  - deficit management
+  - Congressional Budget Office

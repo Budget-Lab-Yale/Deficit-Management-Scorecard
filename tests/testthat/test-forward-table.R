@@ -1,8 +1,7 @@
 test_that("forward table is generated from fixed c value", {
-  repo_root <- normalizePath(file.path(testthat::test_path(), "..", ".."))
-  forward_path <- file.path(repo_root, "data", "processed", "forward_table.rds")
-  csv_path <- file.path(repo_root, "output", "forward_deficit_reduction_table.csv")
-  tex_path <- file.path(repo_root, "output", "panel_b_deficit_reduction.tex")
+  forward_path <- file.path(scorecard_data_dir, "forward_table.rds")
+  csv_path <- file.path(scorecard_output_dir, "forward_deficit_reduction_table.csv")
+  tex_path <- file.path(scorecard_output_dir, "panel_b_deficit_reduction.tex")
 
   expect_true(file.exists(forward_path), info = "Run Rscript scripts/run_pipeline.R first")
   expect_true(file.exists(csv_path), info = "Run Rscript scripts/run_pipeline.R first")
@@ -23,4 +22,14 @@ test_that("forward table is generated from fixed c value", {
     )
   expect_equal(primary_reduction[["2027"]], 0.28, tolerance = 0.03)
   expect_gt(primary_reduction[["2036"]], 1)
+})
+
+test_that("forward table uses the February 2026 CBO path", {
+  forward <- readRDS(file.path(scorecard_data_dir, "forward_table.rds"))
+
+  expect_identical(range(forward$paths$year), c(2026L, 2056L))
+  expect_equal(nrow(forward$paths), 31)
+  expect_equal(forward$paths$b_cbo[forward$paths$year == 2026L], 1.00605)
+  expect_equal(forward$paths$b_cbo[forward$paths$year == 2036L], 1.20223, tolerance = 1e-5)
+  expect_false(anyNA(forward$paths))
 })

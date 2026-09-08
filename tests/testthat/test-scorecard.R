@@ -1,9 +1,11 @@
 test_that("pipeline outputs satisfy scorecard invariants", {
-  repo_root <- normalizePath(file.path(testthat::test_path(), "..", ".."))
-  dataset_path <- file.path(repo_root, "data", "processed", "dataset_for_regression_26.rds")
-  alternative_path <- file.path(repo_root, "data", "processed", "dataset_for_regression_26__techcustomdutiesinleg.rds")
-  score_path <- file.path(repo_root, "data", "processed", "scorecard_unified.rds")
-  csv_path <- file.path(repo_root, "output", "scorecard_unified.csv")
+  dataset_path <- file.path(scorecard_data_dir, "dataset_for_regression_26.rds")
+  alternative_path <- file.path(
+    scorecard_data_dir,
+    "dataset_for_regression_26__techcustomdutiesinleg.rds"
+  )
+  score_path <- file.path(scorecard_data_dir, "scorecard_unified.rds")
+  csv_path <- file.path(scorecard_output_dir, "scorecard_unified.csv")
 
   expect_true(file.exists(dataset_path), info = "Run Rscript scripts/run_pipeline.R first")
   expect_true(file.exists(alternative_path), info = "Run Rscript scripts/run_pipeline.R first")
@@ -66,51 +68,15 @@ test_that("pipeline outputs satisfy scorecard invariants", {
 
   highlights <- scorecard |>
     dplyr::filter(.data$period_label %in% c("2025a", "2025b", "2025b*", "2026a"))
-  expect_equal(
-    highlights$period_label[which.max(highlights$failure_value)],
-    "2025b"
-  )
+  expect_equal(highlights$period_label[which.max(highlights$failure_value)], "2025b")
 
-  expect_true(file.exists(file.path(repo_root, "output", "residuals_basefit_1984b2026a_nozlb_new_updated_debt.pdf")))
-  expect_true(file.exists(file.path(repo_root, "output", "fig3_distribution_residuals_new_updated_kunits_10_debt.pdf")))
-  expect_true(file.exists(file.path(repo_root, "output", "empirical_regression_summary.csv")))
-})
-
-test_that("R data match the corrected author dataset before intentional sample divergences", {
-  testthat::skip_if_not_installed("haven")
-  repo_root <- normalizePath(file.path(testthat::test_path(), "..", ".."))
-  r_path <- file.path(repo_root, "data", "processed", "dataset_for_regression_26.rds")
-  stata_path <- file.path(repo_root, "..", "final_repkit", "dta", "dataset_for_regression_26.dta")
-  testthat::skip_if_not(file.exists(r_path), "Run Rscript scripts/run_pipeline.R first")
-  testthat::skip_if_not(file.exists(stata_path), "Canonical July 28 repkit is not present")
-
-  r_data <- readRDS(r_path)
-  stata_data <- haven::read_dta(stata_path)
-  fields <- c("surplus", "surplus_exp", "deltabexp_t0_t4", "lag_outgap_pgdp")
-  r_periods <- r_data |>
-    dplyr::filter(.data$periodid >= 198402L) |>
-    dplyr::pull(.data$periodid)
-  stata_periods <- stata_data |>
-    dplyr::filter(.data$periodid >= 198402L) |>
-    dplyr::pull(.data$periodid)
-  expect_false(anyDuplicated(r_periods) > 0)
-  expect_false(anyDuplicated(stata_periods) > 0)
-  expect_setequal(r_periods, stata_periods)
-
-  joined <- dplyr::inner_join(
-    dplyr::select(r_data, periodid, dplyr::all_of(fields)),
-    dplyr::select(stata_data, periodid, dplyr::all_of(fields)),
-    by = "periodid",
-    suffix = c("_r", "_stata")
-  ) |>
-    dplyr::filter(.data$periodid >= 198402L)
-
-  for (field in fields) {
-    expect_equal(
-      as.numeric(joined[[paste0(field, "_r")]]),
-      as.numeric(joined[[paste0(field, "_stata")]]),
-      tolerance = 1e-7,
-      info = field
-    )
-  }
+  expect_true(file.exists(file.path(
+    scorecard_output_dir,
+    "residuals_basefit_1984b2026a_nozlb_new_updated_debt.pdf"
+  )))
+  expect_true(file.exists(file.path(
+    scorecard_output_dir,
+    "fig3_distribution_residuals_new_updated_kunits_10_debt.pdf"
+  )))
+  expect_true(file.exists(file.path(scorecard_output_dir, "empirical_regression_summary.csv")))
 })

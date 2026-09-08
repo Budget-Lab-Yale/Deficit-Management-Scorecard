@@ -4,7 +4,8 @@ output/
 .Rhistory
 .RData
 .Ruserdata
-*.pdf
-*.png
-*.rds
-
+.Rproj.user/
+.Renviron
+.DS_Store
+Thumbs.db
+*.log

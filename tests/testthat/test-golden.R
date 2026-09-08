@@ -3,11 +3,8 @@
 # the February 2026 vintage outputs; update them deliberately (with a noted
 # reason) whenever a new CBO release legitimately changes the numbers.
 
-golden_repo_root <- normalizePath(file.path(testthat::test_path(), "..", ".."))
-
 read_output_csv <- function(name) {
-  path <- file.path(golden_repo_root, "output", name)
-  testthat::skip_if_not(file.exists(path), "Run Rscript scripts/run_pipeline.R first")
+  path <- file.path(scorecard_output_dir, name)
   readr::read_csv(path, show_col_types = FALSE)
 }
 

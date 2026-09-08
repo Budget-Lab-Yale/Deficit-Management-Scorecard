@@ -1,9 +1,6 @@
-# 2026 CBO baseline path for the forward table. Delegates to the general
-# build_cbo_path() (vintage 2026) without the 103-year extension, yielding the
-# same LTBO projection rows this table used before the c-star consolidation.
-# Requires R/cbo_paths.R to be sourced.
+# 2026 CBO baseline path for the forward table. Requires R/cbo_paths.R.
 read_ltbo_cbo_paths <- function(input_dir) {
-  build_cbo_path(input_dir, 2026L, extend = FALSE)
+  build_cbo_path(input_dir)
 }
 
 simulate_deterministic_feedback <- function(c_value, cbo_paths, beta_1 = 0.576, beta_2 = 0.00848) {
