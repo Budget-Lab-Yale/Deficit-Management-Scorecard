@@ -1,20 +1,21 @@
 # Deficit Management Scorecard
 
-This repository produces The Budget Lab's February 2026 Deficit Management
-Scorecard. The scorecard grades recent congressional deficit management against
-the fiscal response observed from 1984b through 2003b. It also applies the
-paper's fixed fiscal-feedback rule to the Congressional Budget Office (CBO)
-baseline through 2036.
+This repository produces The Budget Lab's Deficit Management Scorecard. The
+scorecard grades recent congressional deficit management against the fiscal
+response observed from 1984b through 2003b, and it applies a fixed
+fiscal-feedback rule to the Congressional Budget Office (CBO) baseline through
+2036. The current vintage uses CBO's February 2026 outlook and accompanies the
+Budget Lab post *Congress Now Does Far Less About Rising Debt Than It Once
+Did* (September 2026).
 
 The method comes from Alan Auerbach and Danny Yagan, *Grading Government: A
 Deficit Management Scorecard* (forthcoming in the *National Tax Journal*).
-The source inputs needed to reproduce the scorecard findings are committed to
-this repository.
+All source inputs are committed to this repository.
 
 ## Reproduce the results
 
-The project uses R 4.3.3 and package versions recorded in `renv.lock`. From a
-fresh clone, run:
+The project uses R 4.3.3 and the package versions recorded in `renv.lock`.
+From a fresh clone:
 
 ```sh
 Rscript -e 'renv::restore()'
@@ -22,66 +23,72 @@ Rscript scripts/run_pipeline.R
 Rscript scripts/run_tests.R
 ```
 
-The pipeline must run before the tests because the golden-result checks read
-generated files from `output/`. GitHub Actions runs the same workflow on every
-push and pull request.
+The pipeline must run before the tests because the golden tests read the
+generated files in `output/`. GitHub Actions runs both steps on every push and
+pull request.
 
 ## Outputs
 
-The pipeline writes tables and figures to `output/` and intermediate data to
+The pipeline writes results to `output/` and intermediate data to
 `data/processed/`. Its principal outputs are:
 
 | Output | Contents |
 |---|---|
-| `scorecard_unified.csv` | Actual and predicted deficit reduction, shortfalls, and historical percentiles |
-| `empirical_regression_summary.csv` | Benchmark coefficients, robust standard errors, sample sizes, and fit statistics |
-| `forward_deficit_reduction_table.csv` | Fixed-feedback forward table |
+| `scorecard_unified.csv` | Actual and predicted deficit reduction, failure values, era membership, and percentiles for every observation |
+| `empirical_regression_summary.csv` | Benchmark coefficients, HC1 standard errors, sample sizes, and fit statistics |
+| `forward_deficit_reduction_table.csv` | Required deficit reduction under the fixed feedback rule, 2027 to 2036 |
+| `panel_b_deficit_reduction.tex` | The same table in LaTeX |
 | `residuals_basefit_1984b2026a_nozlb_new_updated_debt.{pdf,png}` | Scorecard scatter plot |
-| `fig3_distribution_residuals_new_updated_kunits_10_debt.{pdf,png}` | Distribution plot |
-| `fig3_distribution_histogram_new_updated_debt.{pdf,png}` | Distribution histogram |
+| `fig3_distribution_residuals_new_updated_kunits_10_debt.{pdf,png}` | Distribution of deviations, kernel density |
+| `fig3_distribution_histogram_new_updated_debt.{pdf,png}` | Distribution of deviations, histogram |
 
 ## Method
 
-The empirical scorecard regresses the deficit reduction enacted after each CBO
-report on the projected debt-to-GDP change in the prior report, controlling for
-the output gap. The benchmark contains 39 observations from 1984b through
-2003b. Each later observation is scored by its shortfall from the benchmark
-response and its percentile in fixed historical comparison pools.
+The scorecard regresses the deficit reduction Congress enacted in each
+half-year on the change in the debt-to-GDP ratio that CBO projected in the
+prior report, controlling for the output gap. The benchmark regression uses
+the 39 observations from 1984b through 2003b. Each later observation is
+scored by its shortfall from the benchmark response and its percentile in
+fixed historical comparison pools.
 
-The forward table is a deterministic calculation based on CBO's February 2026
-long-term budget outlook. It uses the paper's annual feedback coefficient of
-0.19 as an input; this repository does not estimate that coefficient.
+The forward table applies the paper's minimum sustainable annual feedback
+coefficient of 0.19 to CBO's long-term baseline. The repository takes that
+coefficient as an input and does not estimate it.
 
-The [empirical specification](docs/empirical_scorecard_specification.md)
-documents the sample definitions, zero-lower-bound exclusions, and timing
-conventions.
+The [specification](docs/empirical_scorecard_specification.md) documents the
+observation rules, variable definitions, samples, and estimation. The
+[update procedure](docs/update_procedure.md) lists what changes with each new
+CBO vintage, and [`CHANGELOG.md`](CHANGELOG.md) records the vintages.
 
-## Data and repository structure
-
-The source files under `inputs/` include CBO budget data, CBO potential GDP and
-output-gap series, an Office of Management and Budget price-level series, and
-the maintained scorecard series of CBO baseline revisions and legislative
-changes. [Input documentation](inputs/README.md) gives their provenance and
-update procedure. `config/input_manifest.csv` records the SHA-256 digest of
-each source file.
+## Repository structure
 
 ```
 R/               Data construction, estimation, figures, and forward table
-config/          Input manifest and checksums
-docs/            Empirical specification
-inputs/          Source data
-scripts/         Pipeline and test entrypoints
-tests/testthat/  Integrity, specification, and golden-result tests
+config/          Input manifest with SHA-256 digests
+docs/            Specification and update procedure
+inputs/          Source data, with provenance in inputs/README.md
+scripts/         Pipeline and test entry points
+tests/testthat/  Input-integrity, invariant, and golden tests
 ```
 
-The default paths reproduce the publication from the repository root. The
-`DEFICIT_SCORECARD_INPUT_DIR`, `DEFICIT_SCORECARD_DATA_DIR`, and
-`DEFICIT_SCORECARD_OUTPUT_DIR` environment variables can set alternate input,
-intermediate-data, and output locations.
+The `DEFICIT_SCORECARD_INPUT_DIR`, `DEFICIT_SCORECARD_DATA_DIR`, and
+`DEFICIT_SCORECARD_OUTPUT_DIR` environment variables set alternate input,
+intermediate-data, and output locations. `DEFICIT_SCORECARD_FORWARD_C`
+overrides the forward-table coefficient.
 
-## Citation
+## Tests
+
+`tests/testthat/` holds three kinds of test. The input tests check that every
+file under `inputs/` matches its recorded digest. The invariant tests check
+properties that must hold for any vintage, such as sample sizes and the lag
+structure. The golden tests pin the published numbers for the current vintage
+so that a code change cannot move them unnoticed; they are updated
+deliberately with each CBO release.
+
+## Citation and license
 
 Software citation metadata are in [`CITATION.cff`](CITATION.cff). For the
-method and annual feedback coefficient, cite Alan Auerbach and Danny Yagan,
+method and the feedback coefficient, cite Alan Auerbach and Danny Yagan,
 *Grading Government: A Deficit Management Scorecard*, forthcoming in the
-*National Tax Journal*.
+*National Tax Journal*. The code and documentation are released under the
+[MIT License](LICENSE); CBO and OMB source files are in the public domain.

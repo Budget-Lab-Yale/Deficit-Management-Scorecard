@@ -22,8 +22,8 @@ scorecard_latest_periodid <- function(vintage = scorecard_vintage()) {
   as.integer(vintage$latest_report_year * 100L + vintage$latest_report_half)
 }
 
-# Canonical empirical samples. The first era includes 2003b, as agreed in the
-# author correspondence; the later historical comparison begins at 2004a.
+# Empirical samples. The benchmark era runs 1984b-2003b and the later
+# comparison era 2004a-2024b (see docs/empirical_scorecard_specification.md).
 scorecard_periods <- function() {
   list(
     first_era_start = 198402L,
@@ -337,8 +337,8 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
       .groups = "drop"
     ) |>
     dplyr::filter(!is.na(.data$report_month), !is.na(.data$budget_line), .data$budget_line != "") |>
-  # Reassign the December 1995 outlook before joining annual potential GDP so
-  # the report uses the 1996 value after its year changes.
+    # A December report belongs to the following year's winter observation, so
+    # it takes that year's potential GDP. December 1995 is the only such report.
     dplyr::mutate(
       report_year = dplyr::if_else(
         .data$report_month == 12L & .data$report_year == 1995L,
@@ -520,9 +520,8 @@ build_leg_regression_data <- function(complete_data, pgdp, budget_vars, outgap) 
       lag_debt_pgdp = .data$debt_act / .data$pgdp
     )
 
-  # The output-gap lag must come from the quarterly series, not from report
-  # rows: half-years with no fiscal report (2022b) still have to serve as the
-  # lag source for the following year's report (2023b).
+  # The output-gap lag comes from the quarterly series so that a half-year with
+  # no CBO report (2022b) still supplies the lag for the next year's (2023b).
   lag_outgap_lookup <- outgap |>
     dplyr::transmute(
       report_year = .data$report_year + 1L,

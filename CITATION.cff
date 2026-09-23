@@ -5,6 +5,7 @@ type: software
 authors:
   - name: "The Budget Lab at Yale"
 repository-code: "https://github.com/Budget-Lab-Yale/Deficit-Scorecard"
+license: MIT
 abstract: >-
   R code and bundled source inputs for The Budget Lab's Deficit Management
   Scorecard, including the empirical scorecard, publication figures, and the

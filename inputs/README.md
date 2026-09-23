@@ -1,28 +1,27 @@
 # Input data
 
-The repository includes the source files needed to reproduce the February 2026
-scorecard and forward table.
-
-`config/input_manifest.csv` records the expected SHA-256 digest for each file.
-The test suite verifies those digests before it checks the model results.
+The repository includes every source file needed to reproduce the February
+2026 scorecard and forward table. `config/input_manifest.csv` records the
+SHA-256 digest of each file, and the test suite verifies the digests before it
+checks the results.
 
 ## Sources
 
-The Congressional Budget Office (CBO) files are from its February 2026
-[budget and economic data](https://www.cbo.gov/data) and
-[long-term budget outlook](https://www.cbo.gov/publication/62044). The Office
-of Management and Budget (OMB) price-level series is from the Fiscal Year 2026
-[Historical Tables](https://www.whitehouse.gov/omb/information-resources/budget/historical-tables/).
+| File | Source |
+|---|---|
+| `cbo/cbo_revision_2026.csv` | Budget Lab maintained series of CBO baseline revisions and legislative changes, January 1984 through February 2026, compiled from each outlook's "Changes in CBO's Baseline Projections" table |
+| `cbo/cbo_revision_2026_tariffs_as_legislation.csv` | Same series with projected customs-duty revenue in the February 2026 outlook reclassified from technical to legislative |
+| `cbo/51134-2026-02-Historical-Budget-Data.xlsx` | CBO, [Historical Budget Data](https://www.cbo.gov/data/budget-economic-data), February 2026 |
+| `cbo/51119-2026-02-LTBO-Budget.xlsx` | CBO, [The Long-Term Budget Outlook: 2026 to 2056](https://www.cbo.gov/publication/62044), budget projections workbook |
+| `historical/Annual_FY_February2026.csv` | CBO, potential GDP by fiscal year, February 2026 |
+| `historical/Quarterly_February2026.csv` | CBO, quarterly output gap, February 2026 |
+| `historical/omb_fy2026_gdp_price_levels.csv` | OMB, [Historical Tables](https://www.whitehouse.gov/omb/information-resources/budget/historical-tables/), Fiscal Year 2026, Table 10.1 |
 
-The two `cbo_revision_2026*.csv` files contain the maintained scorecard series
-of CBO baseline revisions and legislative changes through February 2026. They
-combine historical CBO releases and apply the timing allocations described in
-`docs/empirical_scorecard_specification.md`. The alternative file differs only
-in its treatment of projected customs-duty revenue for the 2025b observation.
+The revision series is the one input that CBO does not publish in this form.
+Its rows are transcribed from each outlook and carry the sign and allocation
+corrections listed in `docs/empirical_scorecard_specification.md`.
 
-## Updating the inputs
+## Updating
 
-For a new scorecard vintage, update the two revision CSV files and replace the
-current CBO and OMB source files. Then update `scorecard_vintage()` in
-`R/build_inputs.R`, the manifest paths and digests, and the golden values only
-after reviewing the resulting changes.
+`docs/update_procedure.md` lists every file and setting that changes with a
+new CBO vintage.

@@ -101,11 +101,7 @@ prepare_scorecard_data <- function(main_data, alternative_data) {
     dplyr::mutate(
       percentile_first_era = percentile_against(.data$failure_value, first_values),
       percentile_later_era = percentile_against(.data$failure_value, later_values),
-      percentile_historical = percentile_against(.data$failure_value, historical_values),
-      # Backward-compatible output names. Both now use fixed historical
-      # reference pools and never rank highlights against themselves.
-      percentile_all = .data$percentile_historical,
-      percentile_post_2004 = .data$percentile_later_era
+      percentile_historical = percentile_against(.data$failure_value, historical_values)
     )
 
   list(data = score_data, model = model)
@@ -198,9 +194,7 @@ write_scorecard_outputs <- function(score_data, output_dir) {
       group = .data$group,
       percentile_first_era = .data$percentile_first_era,
       percentile_later_era = .data$percentile_later_era,
-      percentile_historical = .data$percentile_historical,
-      percentile_all = .data$percentile_all,
-      percentile_post_2004 = .data$percentile_post_2004
+      percentile_historical = .data$percentile_historical
     ) |>
     dplyr::arrange(.data$period_label)
 

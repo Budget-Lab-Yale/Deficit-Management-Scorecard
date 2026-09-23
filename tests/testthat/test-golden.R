@@ -1,7 +1,7 @@
-# Golden regression test: pins the published numeric outputs so a parsing/join
-# change between CBO updates can't shift the figures undetected. Values below are
-# the February 2026 vintage outputs; update them deliberately (with a noted
-# reason) whenever a new CBO release legitimately changes the numbers.
+# Golden tests pin the published numeric outputs so that a code change cannot
+# shift the figures undetected. The values are the February 2026 vintage. A new
+# CBO release changes them legitimately; docs/update_procedure.md describes how
+# to refresh them.
 
 read_output_csv <- function(name) {
   path <- file.path(scorecard_output_dir, name)
@@ -29,7 +29,7 @@ test_that("scorecard highlight values match the February 2026 golden reference",
   expect_equal(pick("2025a", "percentile_historical"), 0.900000, tolerance = 1e-9)
 })
 
-test_that("empirical regression summary matches the resolved specification", {
+test_that("empirical regression summary matches the February 2026 golden reference", {
   rows <- read_output_csv("empirical_regression_summary.csv")
   standard <- rows[rows$specification == "standard_projected_surplus", ]
   unified <- rows[rows$specification == "unified_prior_report_debt_change", ]
