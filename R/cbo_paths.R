@@ -1,15 +1,18 @@
-# Build the February 2026 CBO baseline used by the forward table.
+# Build the CBO baseline path used by the forward table, from the long-term
+# budget outlook and the historical budget data named in scorecard_vintage().
 #
 # Surpluses are positive and deficits are negative. The LTBO workbook reports
 # debt and budget values as shares of GDP; this module converts them to ratios.
 
-cbo_path_config <- function() {
+# The seed year is the last fiscal year before the first projection year, taken
+# from the previous year's actual debt in the historical budget data.
+cbo_path_config <- function(vintage = scorecard_vintage()) {
   list(
-    ltbo_file = "51119-2026-02-LTBO-Budget.xlsx",
+    ltbo_file = vintage$ltbo_xlsx,
     ltbo_sheet = "Supplemental Table 1",
     ltbo_range = "A9:P40",
-    historical_file = "51134-2026-02-Historical-Budget-Data.xlsx",
-    seed_year = 2025L
+    historical_file = vintage$historical_budget_xlsx,
+    seed_year = vintage$latest_report_year - 1L
   )
 }
 
@@ -26,7 +29,7 @@ find_col <- function(column_names, pattern, label) {
 
 read_ltbo_projection <- function(input_dir) {
   cfg <- cbo_path_config()
-  path <- file.path(input_dir, "cbo", cfg$ltbo_file)
+  path <- file.path(input_dir, cfg$ltbo_file)
   assert_files_exist(path)
 
   ltbo <- readxl::read_excel(
@@ -58,7 +61,7 @@ read_ltbo_projection <- function(input_dir) {
 
 read_previous_year_budget <- function(input_dir) {
   cfg <- cbo_path_config()
-  path <- file.path(input_dir, "cbo", cfg$historical_file)
+  path <- file.path(input_dir, cfg$historical_file)
   assert_files_exist(path)
 
   debt <- readxl::read_excel(
@@ -119,12 +122,13 @@ build_cbo_path <- function(input_dir) {
       "model_year", "year", "b_cbo", "rho_cbo", "s_cbo", "s_tot_cbo", "m_cbo", "gdp", "g"
     )
 
-  assert_unique_key(path, "model_year", "February 2026 CBO path")
-  assert_unique_key(path, "year", "February 2026 CBO path")
+  path_label <- paste(scorecard_vintage()$label, "CBO path")
+  assert_unique_key(path, "model_year", path_label)
+  assert_unique_key(path, "year", path_label)
   assert_no_missing(
     path,
     c("b_cbo", "rho_cbo", "s_cbo", "s_tot_cbo", "m_cbo", "gdp", "g"),
-    "February 2026 CBO path"
+    path_label
   )
   path
 }

@@ -1,6 +1,7 @@
 simulate_deterministic_feedback <- function(c_value, cbo_paths, beta_1 = 0.576, beta_2 = 0.00848) {
+  first_year <- scorecard_vintage()$latest_report_year
   assert_no_missing(
-    dplyr::filter(cbo_paths, dplyr::between(.data$year, 2026L, 2036L)),
+    dplyr::filter(cbo_paths, dplyr::between(.data$year, first_year, max(forward_table_years()))),
     c("b_cbo", "rho_cbo", "s_cbo", "s_tot_cbo", "m_cbo", "g"),
     "CBO forward table paths"
   )
@@ -52,11 +53,13 @@ simulate_deterministic_feedback <- function(c_value, cbo_paths, beta_1 = 0.576, 
 }
 
 build_forward_table_data <- function(input_dir, c_value = 0.19) {
+  vintage <- scorecard_vintage()
+  table_years <- forward_table_years(vintage)
   paths <- build_cbo_path(input_dir)
   simulated <- simulate_deterministic_feedback(c_value, paths)
 
   table_data <- simulated |>
-    dplyr::filter(dplyr::between(.data$year, 2026L, 2036L)) |>
+    dplyr::filter(dplyr::between(.data$year, vintage$latest_report_year, max(table_years))) |>
     dplyr::mutate(
       b_baseline = .data$b_det,
       s_baseline = .data$s_det,
@@ -78,7 +81,7 @@ build_forward_table_data <- function(input_dir, c_value = 0.19) {
       b_prescription = .data$b_prescription * 100,
       b_change = .data$b_baseline - .data$b_prescription
     ) |>
-    dplyr::filter(.data$year >= 2027L)
+    dplyr::filter(.data$year >= min(table_years))
 
   list(
     paths = paths,
@@ -89,12 +92,13 @@ build_forward_table_data <- function(input_dir, c_value = 0.19) {
 }
 
 append_average_columns <- function(values, years) {
-  c(
-    stats::setNames(values[match(2027:2036, years)], as.character(2027:2036)),
-    "2027-2031" = mean(values[years %in% 2027:2031], na.rm = TRUE),
-    "2032-2036" = mean(values[years %in% 2032:2036], na.rm = TRUE),
-    "2027-2036" = mean(values[years %in% 2027:2036], na.rm = TRUE)
+  table_years <- forward_table_years()
+  averages <- vapply(
+    forward_table_windows(),
+    function(window) mean(values[years %in% window], na.rm = TRUE),
+    numeric(1)
   )
+  c(stats::setNames(values[match(table_years, years)], as.character(table_years)), averages)
 }
 
 build_forward_table_rows <- function(table_data) {
@@ -134,7 +138,7 @@ format_table_number <- function(value, digits = 2) {
 }
 
 write_forward_table_latex <- function(rows, c_value, path) {
-  years <- c(as.character(2027:2036), "2027-2031", "2032-2036", "2027-2036")
+  years <- c(as.character(forward_table_years()), names(forward_table_windows()))
   c_str <- formatC(c_value, format = "f", digits = 2)
 
   format_row <- function(row) {
@@ -179,7 +183,7 @@ write_forward_table_latex <- function(rows, c_value, path) {
 
   note <- paste0(
     " Notes: This table applies a fixed fiscal feedback parameter from the paper, ",
-    "$c^*=", c_str, "$. Panel B applies that fiscal feedback rule to the February 2026 CBO baseline fiscal path listed in Panel A. ",
+    "$c^*=", c_str, "$. Panel B applies that fiscal feedback rule to the ", scorecard_vintage()$label, " CBO baseline fiscal path listed in Panel A. ",
     "Panel C lists Panel A minus Panel B. All values are expressed as a percent of GDP. ",
     "For example, the first cell of Panel B is the required primary deficit reduction in 2027, equal to ",
     c_str, " times the projected debt-GDP ratio change from 2026 to 2027, with later years taking into account the reduced debt-GDP ratio change due to prior permanent deficit reductions. ",

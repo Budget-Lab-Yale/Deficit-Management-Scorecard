@@ -10,6 +10,7 @@ scorecard_vintage <- function() {
     pgdp_csv = file.path("historical", "Annual_FY_February2026.csv"),
     outgap_csv = file.path("historical", "Quarterly_February2026.csv"),
     historical_budget_xlsx = file.path("cbo", "51134-2026-02-Historical-Budget-Data.xlsx"),
+    ltbo_xlsx = file.path("cbo", "51119-2026-02-LTBO-Budget.xlsx"),
     revision_main_csv = "cbo_revision_2026.csv",
     revision_alt_csv = "cbo_revision_2026_tariffs_as_legislation.csv"
   )
@@ -19,6 +20,22 @@ scorecard_vintage <- function() {
 # semiannual report as report_year * 100 + report_half.
 scorecard_latest_periodid <- function(vintage = scorecard_vintage()) {
   as.integer(vintage$latest_report_year * 100L + vintage$latest_report_half)
+}
+
+# Years of the forward table. The table starts the year after the latest report
+# year and runs for ten years; the path also carries the report year itself,
+# which supplies the lagged debt for the first table year.
+forward_table_years <- function(vintage = scorecard_vintage()) {
+  first <- vintage$latest_report_year + 1L
+  first:(first + 9L)
+}
+
+# Averaging windows of the forward table: the first five years, the last five
+# years, and all ten, named by their year range (for example "2027-2031").
+forward_table_windows <- function(vintage = scorecard_vintage()) {
+  years <- forward_table_years(vintage)
+  windows <- list(years[1:5], years[6:10], years)
+  stats::setNames(windows, vapply(windows, function(w) sprintf("%d-%d", min(w), max(w)), character(1)))
 }
 
 # Empirical samples. The benchmark era runs 1984b-2003b and the later
