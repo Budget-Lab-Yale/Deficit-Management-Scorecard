@@ -4,14 +4,15 @@ title: "Deficit Management Scorecard"
 type: software
 authors:
   - name: "The Budget Lab at Yale"
-repository-code: "https://github.com/Budget-Lab-Yale/Deficit-Scorecard"
+repository-code: "https://github.com/Budget-Lab-Yale/Deficit-Management-Scorecard"
+url: "https://budgetlab.yale.edu/research/congress-now-does-far-less-about-rising-debt-it-once-did"
 license: MIT
 version: "2026.02"
 date-released: 2026-09-14
 abstract: >-
   R code and bundled source inputs for The Budget Lab's Deficit Management
-  Scorecard, including the empirical scorecard, publication figures, and the
-  fixed-feedback forward deficit table.
+  Scorecard, including the empirical scorecard, the fixed-feedback forward
+  deficit table, and the data behind the published charts.
 keywords:
   - fiscal policy
   - federal budget

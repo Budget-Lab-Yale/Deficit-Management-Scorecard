@@ -3,8 +3,10 @@
 This document describes how the R pipeline builds the Deficit Management
 Scorecard from CBO data. It is written for two readers: a maintainer preparing
 the next CBO vintage, and a reader checking the numbers in a Budget Lab post
-against the code. The method follows Auerbach and Yagan (2026), using the
-debt-ratio specification of their Appendix Table A-1.
+against the code. The method follows Auerbach and Yagan (2026). The scorecard
+uses the version of their fiscal feedback regression in which the explanatory
+variable is the projected change in the debt-to-GDP ratio; their main
+estimates use the projected deficit.
 
 > Auerbach, Alan J., and Danny Yagan. 2026. "Grading Government: A Deficit Management Scorecard." *National Tax Journal* 79 (3): 735–757. https://doi.org/10.1086/742158.
 

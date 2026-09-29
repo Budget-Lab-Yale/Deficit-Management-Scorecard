@@ -9,7 +9,7 @@ checks the results.
 
 | File | Source |
 |---|---|
-| `cbo/cbo_revision_2026.csv` | Budget Lab maintained series of CBO baseline revisions and legislative changes, January 1984 through February 2026, compiled from each outlook's "Changes in CBO's Baseline Projections" table |
+| `cbo/cbo_revision_2026.csv` | Alan J. Auerbach and Danny Yagan's series of CBO baseline revisions and legislative changes, January 1984 through February 2026, compiled from each outlook's "Changes in CBO's Baseline Projections" table |
 | `cbo/cbo_revision_2026_tariffs_as_legislation.csv` | Same series with projected customs-duty revenue in the February 2026 outlook reclassified from technical to legislative |
 | `cbo/51134-2026-02-Historical-Budget-Data.xlsx` | CBO, [Historical Budget Data](https://www.cbo.gov/data/budget-economic-data), February 2026 |
 | `cbo/51119-2026-02-LTBO-Budget.xlsx` | CBO, [The Long-Term Budget Outlook: 2026 to 2056](https://www.cbo.gov/publication/62044), budget projections workbook |

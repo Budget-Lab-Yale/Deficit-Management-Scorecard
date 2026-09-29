@@ -5,8 +5,8 @@ scorecard grades recent congressional deficit management against the fiscal
 response observed from 1984b through 2003b, and it applies a fixed
 fiscal-feedback rule to the Congressional Budget Office (CBO) baseline through
 2036. The current vintage uses CBO's February 2026 outlook and accompanies the
-Budget Lab post *Congress Now Does Far Less About Rising Debt Than It Once
-Did* (September 2026).
+Budget Lab post [*Congress Now Does Far Less About Rising Debt Than It Once
+Did*](https://budgetlab.yale.edu/research/congress-now-does-far-less-about-rising-debt-it-once-did) (September 2026).
 
 The method comes from Alan J. Auerbach and Danny Yagan, ["Grading Government:
 A Deficit Management Scorecard"](https://doi.org/10.1086/742158), *National Tax

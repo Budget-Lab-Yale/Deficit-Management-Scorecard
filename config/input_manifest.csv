@@ -1,6 +1,6 @@
 path,sha256,source,description
-cbo/cbo_revision_2026.csv,63f802907bb450c713349fb581955738e06b41ef812a9b4bd5633154467c7e79,Budget Lab maintained input,Historical CBO baseline revisions and legislative changes through February 2026
-cbo/cbo_revision_2026_tariffs_as_legislation.csv,fc8fddce4ed9ade20cad5a15162f8267da3626f82202b2d49a50460a808d9133,Budget Lab maintained input,Alternative series treating projected customs-duty changes as legislative
+cbo/cbo_revision_2026.csv,63f802907bb450c713349fb581955738e06b41ef812a9b4bd5633154467c7e79,Auerbach and Yagan,Historical CBO baseline revisions and legislative changes through February 2026
+cbo/cbo_revision_2026_tariffs_as_legislation.csv,fc8fddce4ed9ade20cad5a15162f8267da3626f82202b2d49a50460a808d9133,Auerbach and Yagan,Alternative series treating projected customs-duty changes as legislative
 cbo/51134-2026-02-Historical-Budget-Data.xlsx,19faa434e65ead0424a87906f696049d9e03d9d872fe60eb080ac7e684fdfc12,Congressional Budget Office,February 2026 historical budget data
 cbo/51119-2026-02-LTBO-Budget.xlsx,9ca0be18950dd587f041085c8869f7bd47e13effe571ea013991cebf9ad16e50,Congressional Budget Office,February 2026 long-term budget outlook
 historical/Annual_FY_February2026.csv,c231d0c77e1bf6162dff7bf5577d6b65d55bb6ddde676b6ab1df6c29d49f7c83,Congressional Budget Office,February 2026 annual fiscal-year potential GDP

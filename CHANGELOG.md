@@ -5,8 +5,8 @@ headline numbers the golden tests pin.
 
 ## February 2026 vintage (September 2026)
 
-First release, accompanying the Budget Lab post *Congress Now Does Far Less
-About Rising Debt Than It Once Did*.
+First release, accompanying the Budget Lab post [*Congress Now Does Far Less
+About Rising Debt Than It Once Did*](https://budgetlab.yale.edu/research/congress-now-does-far-less-about-rising-debt-it-once-did).
 
 - CBO outlook: *The Budget and Economic Outlook: 2026 to 2036* (February
   2026) and *The Long-Term Budget Outlook: 2026 to 2056*.
