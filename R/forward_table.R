@@ -1,8 +1,3 @@
-# 2026 CBO baseline path for the forward table. Requires R/cbo_paths.R.
-read_ltbo_cbo_paths <- function(input_dir) {
-  build_cbo_path(input_dir)
-}
-
 simulate_deterministic_feedback <- function(c_value, cbo_paths, beta_1 = 0.576, beta_2 = 0.00848) {
   assert_no_missing(
     dplyr::filter(cbo_paths, dplyr::between(.data$year, 2026L, 2036L)),
@@ -57,7 +52,7 @@ simulate_deterministic_feedback <- function(c_value, cbo_paths, beta_1 = 0.576, 
 }
 
 build_forward_table_data <- function(input_dir, c_value = 0.19) {
-  paths <- read_ltbo_cbo_paths(input_dir)
+  paths <- build_cbo_path(input_dir)
   simulated <- simulate_deterministic_feedback(c_value, paths)
 
   table_data <- simulated |>

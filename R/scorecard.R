@@ -26,7 +26,6 @@ prepare_scorecard_data <- function(main_data, alternative_data) {
     add_period_fields() |>
     dplyr::filter(
       dplyr::between(.data$periodid, periods$first_era_start, scorecard_latest_periodid()),
-      .data$periodid != 202002L,
       !.data$zlb
     ) |>
     dplyr::mutate(
@@ -69,7 +68,6 @@ prepare_scorecard_data <- function(main_data, alternative_data) {
 
   score_data <- score_data |>
     dplyr::mutate(
-      residual = .data$surplus - .data$predicted,
       failure_value = .data$predicted - .data$surplus,
       group = dplyr::case_when(
         dplyr::between(

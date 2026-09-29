@@ -91,4 +91,4 @@ Software citation metadata are in [`CITATION.cff`](CITATION.cff). For the
 method and the feedback coefficient, cite Alan Auerbach and Danny Yagan,
 *Grading Government: A Deficit Management Scorecard*, forthcoming in the
 *National Tax Journal*. The code and documentation are released under the
-[MIT License](LICENSE); CBO and OMB source files are in the public domain.
+[MIT License](LICENSE); CBO source files are in the public domain.

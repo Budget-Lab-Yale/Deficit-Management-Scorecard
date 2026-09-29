@@ -29,8 +29,7 @@ assert_no_missing(
   datasets$main |>
     dplyr::filter(
       .data$periodid >= 198402L,
-      .data$periodid <= scorecard_latest_periodid(),
-      .data$periodid != 202002L
+      .data$periodid <= scorecard_latest_periodid()
     ),
   c("surplus", "lag_deltabexp_t0_t4", "lag_outgap_pgdp"),
   "main regression dataset"

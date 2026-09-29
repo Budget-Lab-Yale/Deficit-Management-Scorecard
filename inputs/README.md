@@ -15,7 +15,6 @@ checks the results.
 | `cbo/51119-2026-02-LTBO-Budget.xlsx` | CBO, [The Long-Term Budget Outlook: 2026 to 2056](https://www.cbo.gov/publication/62044), budget projections workbook |
 | `historical/Annual_FY_February2026.csv` | CBO, potential GDP by fiscal year, February 2026 |
 | `historical/Quarterly_February2026.csv` | CBO, quarterly output gap, February 2026 |
-| `historical/omb_fy2026_gdp_price_levels.csv` | OMB, [Historical Tables](https://www.whitehouse.gov/omb/information-resources/budget/historical-tables/), Fiscal Year 2026, Table 10.1 |
 
 The revision series is the one input that CBO does not publish in this form.
 Its rows are transcribed from each outlook and carry the sign and allocation

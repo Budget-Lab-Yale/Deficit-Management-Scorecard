@@ -24,7 +24,7 @@ change for each of the next thirteen fiscal years in columns `t0` through
 - When a release spans more than one half-year, allocate the changes across
   observations as the specification describes for 2025b and 2026a.
 
-## 2. Replace the CBO and OMB source files
+## 2. Replace the CBO source files
 
 Download the new vintage of each file and place it under `inputs/`:
 
@@ -32,9 +32,8 @@ Download the new vintage of each file and place it under `inputs/`:
 |---|---|---|
 | `historical/Annual_FY_<Month><Year>.csv` | CBO budget and economic data, potential GDP (fiscal year) | Potential GDP scaling |
 | `historical/Quarterly_<Month><Year>.csv` | CBO budget and economic data, quarterly output gap | Output-gap control |
-| `cbo/51134-<year>-<mm>-Historical-Budget-Data.xlsx` | CBO historical budget data | Actual surplus, debt, interest |
+| `cbo/51134-<year>-<mm>-Historical-Budget-Data.xlsx` | CBO historical budget data | Historical debt-to-GDP ratio, forward-table seed year |
 | `cbo/51119-<year>-<mm>-LTBO-Budget.xlsx` | CBO long-term budget outlook | Forward-table baseline |
-| `historical/omb_fy<year>_gdp_price_levels.csv` | OMB Historical Tables, Table 10.1 | Price levels for real rates |
 
 The potential-GDP series must extend at least four years past the new report
 year; the pipeline stops with a message if it does not.
