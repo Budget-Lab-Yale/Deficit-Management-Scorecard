@@ -105,17 +105,17 @@ prepare_scorecard_data <- function(main_data, alternative_data) {
   list(data = score_data, model = model)
 }
 
-build_empirical_regression_summary <- function(main_data, unified_model) {
-  standard_data <- main_data |>
+build_regression_summary <- function(main_data, debt_ratio_model) {
+  projected_surplus_data <- main_data |>
     dplyr::filter(.data$sample_1) |>
     dplyr::transmute(
       surplus = 100 * .data$surplus,
       surplus_exp = 100 * .data$surplus_exp,
       lag_outgap_pgdp = 100 * .data$lag_outgap_pgdp
     )
-  standard_model <- lm(
+  projected_surplus_model <- lm(
     surplus ~ surplus_exp + lag_outgap_pgdp,
-    data = standard_data
+    data = projected_surplus_data
   )
 
   summarize_model <- function(model, specification, feedback_term) {
@@ -125,7 +125,6 @@ build_empirical_regression_summary <- function(main_data, unified_model) {
     feedback_robust_se <- unname(robust_se[[feedback_term]])
     tibble::tibble(
       specification = specification,
-      feedback_term = feedback_term,
       observations = stats::nobs(model),
       feedback_coefficient = feedback_coefficient,
       feedback_robust_se = feedback_robust_se,
@@ -137,14 +136,14 @@ build_empirical_regression_summary <- function(main_data, unified_model) {
   }
 
   dplyr::bind_rows(
-    summarize_model(standard_model, "standard_projected_surplus", "surplus_exp"),
-    summarize_model(unified_model, "unified_prior_report_debt_change", "lag_deltabexp_t0_t4")
+    summarize_model(projected_surplus_model, "projected_surplus", "surplus_exp"),
+    summarize_model(debt_ratio_model, "debt_ratio", "lag_deltabexp_t0_t4")
   )
 }
 
-write_empirical_regression_summary <- function(main_data, unified_model, output_dir) {
-  summary_rows <- build_empirical_regression_summary(main_data, unified_model)
-  readr::write_csv(summary_rows, file.path(output_dir, "empirical_regression_summary.csv"))
+write_regression_summary <- function(main_data, debt_ratio_model, output_dir) {
+  summary_rows <- build_regression_summary(main_data, debt_ratio_model)
+  readr::write_csv(summary_rows, file.path(output_dir, "regression_summary.csv"))
   summary_rows
 }
 
@@ -175,7 +174,7 @@ make_scatter_plot_data <- function(score_data) {
   )
   line_data$surplus_resid <- as.numeric(predict(fit, newdata = line_data))
 
-  list(points = plot_data, line = line_data)
+  list(points = plot_data, line = line_data, fit = fit)
 }
 
 write_scorecard_outputs <- function(score_data, output_dir) {
@@ -196,7 +195,7 @@ write_scorecard_outputs <- function(score_data, output_dir) {
     ) |>
     dplyr::arrange(.data$period_label)
 
-  readr::write_csv(scorecard, file.path(output_dir, "scorecard_unified.csv"))
+  readr::write_csv(scorecard, file.path(output_dir, "scorecard.csv"))
   scorecard
 }
 
@@ -247,13 +246,13 @@ plot_scatter <- function(score_data, output_dir) {
     )
 
   ggplot2::ggsave(
-    file.path(output_dir, "residuals_basefit_1984b2026a_nozlb_new_updated_debt.pdf"),
+    file.path(output_dir, "scorecard_scatter.pdf"),
     plot,
     width = 7.5,
     height = 4.5
   )
   ggplot2::ggsave(
-    file.path(output_dir, "residuals_basefit_1984b2026a_nozlb_new_updated_debt.png"),
+    file.path(output_dir, "scorecard_scatter.png"),
     plot,
     width = 7.5,
     height = 4.5,
@@ -331,88 +330,13 @@ plot_distribution_histogram <- function(score_data, output_dir) {
     )
 
   ggplot2::ggsave(
-    file.path(output_dir, "fig3_distribution_histogram_new_updated_debt.pdf"),
+    file.path(output_dir, "deviation_histogram.pdf"),
     plot,
     width = 6,
     height = 4
   )
   ggplot2::ggsave(
-    file.path(output_dir, "fig3_distribution_histogram_new_updated_debt.png"),
-    plot,
-    width = 6,
-    height = 4,
-    dpi = 200
-  )
-}
-
-plot_distribution <- function(score_data, output_dir) {
-  density_data <- function(values, label) {
-    dens <- stats::density(values, na.rm = TRUE, kernel = "epanechnikov")
-    tibble::tibble(x = dens$x, y = dens$y * 10, group = label)
-  }
-
-  plot_data <- dplyr::bind_rows(
-    density_data(score_data$failure_value[score_data$group == "first_era"], "1984b-2003b"),
-    density_data(score_data$failure_value[score_data$group == "later_era"], "2004a-2024b")
-  )
-  highlights <- score_data |>
-    dplyr::filter(.data$periodidchar %in% c("2025a", "2025b", "2025b*", "2026a")) |>
-    dplyr::select("periodidchar", "failure_value")
-
-  label_y <- max(plot_data$y, na.rm = TRUE) * c(0.8, 0.65, 0.5, 0.35)
-  highlights <- highlights |>
-    dplyr::arrange(.data$failure_value) |>
-    dplyr::mutate(label_y = label_y[seq_len(dplyr::n())])
-
-  plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = .data$x, y = .data$y, color = .data$group, linetype = .data$group)) +
-    ggplot2::geom_line(linewidth = 0.65) +
-    ggplot2::geom_vline(xintercept = 0, color = "gray40", linewidth = 0.25) +
-    ggplot2::geom_vline(
-      data = highlights,
-      ggplot2::aes(xintercept = .data$failure_value),
-      inherit.aes = FALSE,
-      color = "darkorchid3",
-      linetype = "dashed",
-      linewidth = 0.45
-    ) +
-    ggplot2::geom_text(
-      data = highlights,
-      ggplot2::aes(x = .data$failure_value, y = .data$label_y, label = .data$periodidchar),
-      inherit.aes = FALSE,
-      color = "darkorchid3",
-      size = 2.7,
-      hjust = -0.05
-    ) +
-    ggplot2::scale_color_manual(
-      values = c("1984b-2003b" = "darkgreen", "2004a-2024b" = "navy"),
-      breaks = c("1984b-2003b", "2004a-2024b")
-    ) +
-    ggplot2::scale_linetype_manual(
-      values = c("1984b-2003b" = "solid", "2004a-2024b" = "longdash"),
-      breaks = c("1984b-2003b", "2004a-2024b")
-    ) +
-    ggplot2::coord_cartesian(xlim = c(-1, 2.3), clip = "off") +
-    ggplot2::labs(
-      x = "Deficit increase relative to pre-2004-based prediction (% of GDP)",
-      y = "Approximate % of observations per 0.1 percentage-point bin",
-      color = NULL,
-      linetype = NULL
-    ) +
-    ggplot2::theme_minimal(base_size = 10) +
-    ggplot2::theme(
-      legend.position = "bottom",
-      panel.grid.minor = ggplot2::element_blank(),
-      plot.margin = ggplot2::margin(10, 20, 10, 18)
-    )
-
-  ggplot2::ggsave(
-    file.path(output_dir, "fig3_distribution_residuals_new_updated_kunits_10_debt.pdf"),
-    plot,
-    width = 6,
-    height = 4
-  )
-  ggplot2::ggsave(
-    file.path(output_dir, "fig3_distribution_residuals_new_updated_kunits_10_debt.png"),
+    file.path(output_dir, "deviation_histogram.png"),
     plot,
     width = 6,
     height = 4,

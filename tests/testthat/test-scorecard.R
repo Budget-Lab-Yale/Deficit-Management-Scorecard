@@ -1,11 +1,11 @@
 test_that("pipeline outputs satisfy scorecard invariants", {
-  dataset_path <- file.path(scorecard_data_dir, "dataset_for_regression_26.rds")
+  dataset_path <- file.path(scorecard_data_dir, "regression_data.rds")
   alternative_path <- file.path(
     scorecard_data_dir,
-    "dataset_for_regression_26__techcustomdutiesinleg.rds"
+    "regression_data_tariffs_as_legislation.rds"
   )
-  score_path <- file.path(scorecard_data_dir, "scorecard_unified.rds")
-  csv_path <- file.path(scorecard_output_dir, "scorecard_unified.csv")
+  score_path <- file.path(scorecard_data_dir, "scorecard.rds")
+  csv_path <- file.path(scorecard_output_dir, "scorecard.csv")
 
   expect_true(file.exists(dataset_path), info = "Run Rscript scripts/run_pipeline.R first")
   expect_true(file.exists(alternative_path), info = "Run Rscript scripts/run_pipeline.R first")
@@ -70,13 +70,7 @@ test_that("pipeline outputs satisfy scorecard invariants", {
     dplyr::filter(.data$period_label %in% c("2025a", "2025b", "2025b*", "2026a"))
   expect_equal(highlights$period_label[which.max(highlights$failure_value)], "2025b")
 
-  expect_true(file.exists(file.path(
-    scorecard_output_dir,
-    "residuals_basefit_1984b2026a_nozlb_new_updated_debt.pdf"
-  )))
-  expect_true(file.exists(file.path(
-    scorecard_output_dir,
-    "fig3_distribution_residuals_new_updated_kunits_10_debt.pdf"
-  )))
-  expect_true(file.exists(file.path(scorecard_output_dir, "empirical_regression_summary.csv")))
+  for (name in c("scorecard_scatter.pdf", "scorecard_scatter.png", "deviation_histogram.pdf", "deviation_histogram.png", "regression_summary.csv")) {
+    expect_true(file.exists(file.path(scorecard_output_dir, name)), info = name)
+  }
 })

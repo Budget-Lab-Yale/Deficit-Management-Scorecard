@@ -125,100 +125,14 @@ build_forward_table_rows <- function(table_data) {
   }))
 }
 
-format_table_number <- function(value, digits = 2) {
-  if (is.na(value)) {
-    return("")
-  }
-  rounded_value <- round(value, digits)
-  if (rounded_value < 0) {
-    paste0("$-$", formatC(abs(rounded_value), format = "f", digits = digits))
-  } else {
-    formatC(rounded_value, format = "f", digits = digits)
-  }
-}
-
-write_forward_table_latex <- function(rows, c_value, path) {
-  years <- c(as.character(forward_table_years()), names(forward_table_windows()))
-  c_str <- formatC(c_value, format = "f", digits = 2)
-
-  format_row <- function(row) {
-    digits <- if (row$line_item == "Debt/GDP" && grepl("Panel A|Panel C", row$panel)) 1 else 2
-    values <- vapply(unlist(row[years]), format_table_number, character(1), digits = digits)
-    paste0("\\quad ", row$line_item, " & ", paste(values, collapse = " & "), " \\\\")
-  }
-
-  lines <- c(
-    "%\\vspace{0.5cm}",
-    "\\begin{table}[ht!]",
-    "\\caption{Minimum Required Deficit Reduction Over the Next Ten Years}",
-    "\\centering",
-    "\\scriptsize",
-    "\\label{tab:needed_deficit_reduction}",
-    "",
-    "\\resizebox{\\textwidth}{!}{%",
-    "\\begin{tabular}{l*{13}{c}}",
-    "\\toprule",
-    paste0(
-      "& 2027 & 2028 & 2029 & 2030 & 2031 & 2032 & 2033 & 2034 & 2035 & 2036",
-      " & \\makecell{2027--\\\\2031} & \\makecell{2032--\\\\2036} & \\makecell{2027--\\\\2036} \\\\"
-    ),
-    "\\midrule"
-  )
-
-  panel_names <- unique(rows$panel)
-  for (panel_name in panel_names) {
-    panel_label <- if (startsWith(panel_name, "Panel C.")) {
-      paste0("\\makecell[l]{", panel_name, "}")
-    } else {
-      panel_name
-    }
-    lines <- c(lines, paste0("\\multicolumn{14}{@{}l}{\\textit{", panel_label, "}} \\\\"))
-    panel_rows <- rows |>
-      dplyr::filter(.data$panel == panel_name)
-    lines <- c(lines, vapply(seq_len(nrow(panel_rows)), function(i) format_row(panel_rows[i, ]), character(1)))
-    if (panel_name != panel_names[[length(panel_names)]]) {
-      lines <- c(lines, "\\addlinespace")
-    }
-  }
-
-  note <- paste0(
-    " Notes: This table applies a fixed fiscal feedback parameter from the paper, ",
-    "$c^*=", c_str, "$. Panel B applies that fiscal feedback rule to the ", scorecard_vintage()$label, " CBO baseline fiscal path listed in Panel A. ",
-    "Panel C lists Panel A minus Panel B. All values are expressed as a percent of GDP. ",
-    "For example, the first cell of Panel B is the required primary deficit reduction in 2027, equal to ",
-    c_str, " times the projected debt-GDP ratio change from 2026 to 2027, with later years taking into account the reduced debt-GDP ratio change due to prior permanent deficit reductions. ",
-    "The required total deficit reduction exceeds the required primary deficit reduction due to lower interest payments on the reduced debt path."
-  )
-
-  lines <- c(
-    lines,
-    "\\bottomrule",
-    "\\end{tabular}%",
-    "}",
-    "\\footnotesize",
-    "\\begin{justify}",
-    note,
-    "\\end{justify}",
-    "\\end{table}%"
-  )
-
-  writeLines(lines, path)
-  invisible(path)
-}
-
 write_forward_table_outputs <- function(forward, output_dir) {
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   rows <- build_forward_table_rows(forward$table_data)
 
-  readr::write_csv(forward$paths, file.path(output_dir, "forward_cbo_paths_2026.csv"))
-  readr::write_csv(forward$simulated, file.path(output_dir, "forward_deterministic_feedback_path.csv"))
+  readr::write_csv(forward$paths, file.path(output_dir, "forward_cbo_baseline_path.csv"))
+  readr::write_csv(forward$simulated, file.path(output_dir, "forward_feedback_path.csv"))
   readr::write_csv(forward$table_data, file.path(output_dir, "forward_table_detail.csv"))
   readr::write_csv(rows, file.path(output_dir, "forward_deficit_reduction_table.csv"))
-  write_forward_table_latex(
-    rows,
-    forward$c_value,
-    file.path(output_dir, "panel_b_deficit_reduction.tex")
-  )
 
   rows
 }

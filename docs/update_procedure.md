@@ -57,8 +57,7 @@ columns or renames headers.
 
 The highlighted observations are named explicitly in `R/scorecard.R`: the
 `group` labels in `prepare_scorecard_data()`, the period filter in
-`plot_scatter()`, and the label lists in `plot_distribution()` and
-`plot_distribution_histogram()`. The alternative-series observation
+`plot_scatter()`, and the label list in `plot_distribution_histogram()`. The alternative-series observation
 (`2025b*`) is also named there. Add the new observation to each list, and when
 an observation ages out of the highlighted set, extend `later_era_end` in
 `scorecard_periods()` so it joins the comparison era. The `test-scorecard.R`
@@ -81,8 +80,8 @@ Rscript scripts/run_tests.R
 ```
 
 The golden tests in `tests/testthat/test-golden.R` will fail because the
-published values have changed. Compare the new `output/scorecard_unified.csv`
-and `output/empirical_regression_summary.csv` with the previous vintage,
+published values have changed. Compare the new `output/scorecard.csv`
+and `output/regression_summary.csv` with the previous vintage,
 confirm that the benchmark coefficient and the historical observations moved
 only as much as the revised CBO history explains, and then replace the pinned
 values. Record the vintage and its headline numbers in `CHANGELOG.md`.

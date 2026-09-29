@@ -34,13 +34,13 @@ The pipeline writes results to `output/` and intermediate data to
 
 | Output | Contents |
 |---|---|
-| `scorecard_unified.csv` | Actual and predicted deficit reduction, failure values, era membership, and percentiles for every observation |
-| `empirical_regression_summary.csv` | Benchmark coefficients, HC1 standard errors, sample sizes, and fit statistics |
+| `scorecard.csv` | Actual and predicted deficit reduction, deviations from the benchmark rule (`failure_value`), era membership, and percentiles for every observation |
+| `regression_summary.csv` | Benchmark coefficients, HC1 standard errors, sample sizes, and fit statistics for the `debt_ratio` and `projected_surplus` specifications |
 | `forward_deficit_reduction_table.csv` | Required deficit reduction under the fixed feedback rule, 2027 to 2036 |
-| `panel_b_deficit_reduction.tex` | The same table in LaTeX |
-| `residuals_basefit_1984b2026a_nozlb_new_updated_debt.{pdf,png}` | Scorecard scatter plot |
-| `fig3_distribution_residuals_new_updated_kunits_10_debt.{pdf,png}` | Distribution of deviations, kernel density |
-| `fig3_distribution_histogram_new_updated_debt.{pdf,png}` | Distribution of deviations, histogram |
+| `forward_table_detail.csv`, `forward_cbo_baseline_path.csv`, `forward_feedback_path.csv` | The annual paths behind the forward table |
+| `scorecard_scatter.{pdf,png}` | Scorecard scatter plot |
+| `deviation_histogram.{pdf,png}` | Distribution of deviations, histogram |
+| `chart_data/` | The three CSV files behind the website charts: `scorecard_scatter.csv`, `deviation_distribution.csv`, and `required_deficit_reduction.csv` |
 
 ## Method
 

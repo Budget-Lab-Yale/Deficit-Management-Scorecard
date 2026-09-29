@@ -128,9 +128,16 @@ never part of a pool.
 The scatter plot shows both variables net of the output gap, using the
 benchmark-era regression of each variable on the lagged output gap and adding
 back the benchmark-era mean. The fitted line is the benchmark-era regression
-of the adjusted outcome on the adjusted regressor. The density and histogram
-figures show the distribution of failure values by era with the highlighted
-observations marked.
+of the adjusted outcome on the adjusted regressor. The histogram shows the
+distribution of failure values by era with the highlighted observations
+marked.
+
+`R/chart_data.R` writes the data behind the website charts to
+`output/chart_data/`. `scorecard_scatter.csv` holds the adjusted and unadjusted
+coordinates of each charted observation, `deviation_distribution.csv` holds each
+observation's failure value with a weight of 100 divided by the number of
+observations in its era (zero for highlighted observations), and
+`required_deficit_reduction.csv` holds the forward table in long format.
 
 ## Forward table
 
@@ -152,14 +159,16 @@ would otherwise occur, and each reduction is permanent.
 
 `scripts/run_pipeline.R` writes to `output/`:
 
-- `empirical_regression_summary.csv`: both specifications' coefficients, HC1
-  standard errors, t-statistics, sample sizes, output-gap coefficients, and
-  R-squared values;
-- `scorecard_unified.csv`: actual and predicted deficit reduction, failure
-  values, era membership, and the three percentiles for every observation;
-- the scatter, density, and histogram figures in PDF and PNG;
+- `regression_summary.csv`: both specifications' coefficients, HC1 standard
+  errors, t-statistics, sample sizes, output-gap coefficients, and R-squared
+  values, with the specifications named `debt_ratio` and `projected_surplus`;
+- `scorecard.csv`: actual and predicted deficit reduction, failure values,
+  era membership, and the three percentiles for every observation;
+- `scorecard_scatter.{pdf,png}` and `deviation_histogram.{pdf,png}`;
 - `forward_deficit_reduction_table.csv`, `forward_table_detail.csv`,
-  `forward_cbo_paths_2026.csv`, `forward_deterministic_feedback_path.csv`,
-  and `panel_b_deficit_reduction.tex`.
+  `forward_cbo_baseline_path.csv`, and `forward_feedback_path.csv`;
+- `chart_data/scorecard_scatter.csv`, `chart_data/deviation_distribution.csv`,
+  and `chart_data/required_deficit_reduction.csv`, the data behind the website
+  charts.
 
 Intermediate datasets are saved to `data/processed/`.

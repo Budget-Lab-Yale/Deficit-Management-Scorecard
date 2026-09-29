@@ -1,11 +1,9 @@
 test_that("forward table is generated from fixed c value", {
   forward_path <- file.path(scorecard_data_dir, "forward_table.rds")
   csv_path <- file.path(scorecard_output_dir, "forward_deficit_reduction_table.csv")
-  tex_path <- file.path(scorecard_output_dir, "panel_b_deficit_reduction.tex")
 
   expect_true(file.exists(forward_path), info = "Run Rscript scripts/run_pipeline.R first")
   expect_true(file.exists(csv_path), info = "Run Rscript scripts/run_pipeline.R first")
-  expect_true(file.exists(tex_path), info = "Run Rscript scripts/run_pipeline.R first")
 
   forward <- readRDS(forward_path)
   rows <- readr::read_csv(csv_path, show_col_types = FALSE)

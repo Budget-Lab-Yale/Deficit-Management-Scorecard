@@ -9,10 +9,10 @@ read_output_csv <- function(name) {
 }
 
 test_that("scorecard highlight values match the February 2026 golden reference", {
-  scorecard <- read_output_csv("scorecard_unified.csv")
+  scorecard <- read_output_csv("scorecard.csv")
   pick <- function(label, col) scorecard[[col]][scorecard$period_label == label]
 
-  # The unified scorecard uses the prior report's projected debt change and a
+  # The scorecard uses the prior report's projected debt change and a
   # 1984b-2003b benchmark. Percentiles use historical reference observations
   # only: 39 in the first era and 21 in the later era.
   expect_equal(pick("2026a", "failure_value"), 0.501300, tolerance = 1e-4)
@@ -30,16 +30,16 @@ test_that("scorecard highlight values match the February 2026 golden reference",
 })
 
 test_that("empirical regression summary matches the February 2026 golden reference", {
-  rows <- read_output_csv("empirical_regression_summary.csv")
-  standard <- rows[rows$specification == "standard_projected_surplus", ]
-  unified <- rows[rows$specification == "unified_prior_report_debt_change", ]
+  rows <- read_output_csv("regression_summary.csv")
+  projected_surplus <- rows[rows$specification == "projected_surplus", ]
+  debt_ratio <- rows[rows$specification == "debt_ratio", ]
 
-  expect_equal(standard$observations, 39)
-  expect_equal(standard$feedback_coefficient, -0.1436693, tolerance = 1e-6)
-  expect_equal(standard$feedback_robust_se, 0.0324377, tolerance = 1e-6)
-  expect_equal(unified$observations, 39)
-  expect_equal(unified$feedback_coefficient, 0.1762817, tolerance = 1e-6)
-  expect_equal(unified$feedback_robust_se, 0.0401087, tolerance = 1e-6)
+  expect_equal(projected_surplus$observations, 39)
+  expect_equal(projected_surplus$feedback_coefficient, -0.1436693, tolerance = 1e-6)
+  expect_equal(projected_surplus$feedback_robust_se, 0.0324377, tolerance = 1e-6)
+  expect_equal(debt_ratio$observations, 39)
+  expect_equal(debt_ratio$feedback_coefficient, 0.1762817, tolerance = 1e-6)
+  expect_equal(debt_ratio$feedback_robust_se, 0.0401087, tolerance = 1e-6)
 })
 
 test_that("forward table values match the February 2026 golden reference (c = 0.19)", {
