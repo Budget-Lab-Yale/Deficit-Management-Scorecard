@@ -8,9 +8,9 @@ fiscal-feedback rule to the Congressional Budget Office (CBO) baseline through
 Budget Lab post *Congress Now Does Far Less About Rising Debt Than It Once
 Did* (September 2026).
 
-The method comes from Alan Auerbach and Danny Yagan, *Grading Government: A
-Deficit Management Scorecard* (forthcoming in the *National Tax Journal*).
-All source inputs are committed to this repository.
+The method comes from Alan J. Auerbach and Danny Yagan, ["Grading Government:
+A Deficit Management Scorecard"](https://doi.org/10.1086/742158), *National Tax
+Journal* 79 (3), 2026. All source inputs are committed to this repository.
 
 ## Reproduce the results
 
@@ -79,16 +79,20 @@ overrides the forward-table coefficient.
 ## Tests
 
 `tests/testthat/` holds three kinds of test. The input tests check that every
-file under `inputs/` matches its recorded digest. The invariant tests check
-properties that must hold for any vintage, such as sample sizes and the lag
-structure. The golden tests pin the published numbers for the current vintage
-so that a code change cannot move them unnoticed; they are updated
+file under `inputs/` matches its recorded digest. The structural tests in
+`test-scorecard.R`, `test-forward-table.R`, and `test-chart-data.R` check the
+lag structure, era assignment, table dimensions, and agreement between the
+chart data and the scorecard, along with a few current-vintage values such as
+the benchmark coefficient and the CBO baseline path. The golden tests in
+`test-golden.R` pin the published numbers. Pinned values are updated
 deliberately with each CBO release.
 
 ## Citation and license
 
 Software citation metadata are in [`CITATION.cff`](CITATION.cff). For the
-method and the feedback coefficient, cite Alan Auerbach and Danny Yagan,
-*Grading Government: A Deficit Management Scorecard*, forthcoming in the
-*National Tax Journal*. The code and documentation are released under the
+method and the feedback coefficient, cite:
+
+> Auerbach, Alan J., and Danny Yagan. 2026. "Grading Government: A Deficit Management Scorecard." *National Tax Journal* 79 (3): 735–757. https://doi.org/10.1086/742158.
+
+The code and documentation are released under the
 [MIT License](LICENSE); CBO source files are in the public domain.

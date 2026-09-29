@@ -6,6 +6,8 @@ authors:
   - name: "The Budget Lab at Yale"
 repository-code: "https://github.com/Budget-Lab-Yale/Deficit-Scorecard"
 license: MIT
+version: "2026.02"
+date-released: 2026-09-14
 abstract: >-
   R code and bundled source inputs for The Budget Lab's Deficit Management
   Scorecard, including the empirical scorecard, publication figures, and the
@@ -15,3 +17,18 @@ keywords:
   - federal budget
   - deficit management
   - Congressional Budget Office
+references:
+  - type: article
+    authors:
+      - family-names: Auerbach
+        given-names: Alan J.
+      - family-names: Yagan
+        given-names: Danny
+    title: "Grading Government: A Deficit Management Scorecard"
+    journal: "National Tax Journal"
+    volume: 79
+    issue: 3
+    start: 735
+    end: 757
+    year: 2026
+    doi: "10.1086/742158"

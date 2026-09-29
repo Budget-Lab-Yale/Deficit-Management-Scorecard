@@ -3,9 +3,10 @@
 This document describes how the R pipeline builds the Deficit Management
 Scorecard from CBO data. It is written for two readers: a maintainer preparing
 the next CBO vintage, and a reader checking the numbers in a Budget Lab post
-against the code. The method follows Auerbach and Yagan, *Grading Government:
-A Deficit Management Scorecard* (forthcoming, *National Tax Journal*), using
-the debt-ratio ("unified") specification of their Appendix Table A-1.
+against the code. The method follows Auerbach and Yagan (2026), using the
+debt-ratio specification of their Appendix Table A-1.
+
+> Auerbach, Alan J., and Danny Yagan. 2026. "Grading Government: A Deficit Management Scorecard." *National Tax Journal* 79 (3): 735–757. https://doi.org/10.1086/742158.
 
 ## Observations
 
@@ -58,12 +59,23 @@ treats that revenue as legislated and produces the `2025b*` observation.
 
 **Outcome.** The legislated change in the primary surplus over the five fiscal
 years beginning with the observation, each year's change divided by that
-year's potential GDP and weighted toward the near term. Winter weights for
-years t through t+4 are 16/31, 8/31, 4/31, 2/31, and 1/31. Summer observations
-halve the year-t weight and scale the remaining weights up so that the five
-weights still sum to one. When reports are combined within an observation,
-the weights are averaged across the combined reports. Revenue changes enter
+year's potential GDP and weighted toward the near term. Revenue changes enter
 positively and outlay changes negatively.
+
+The weights for years t through t+4 depend on each report's release month:
+
+| Report release month | Weights for years t through t+4 |
+|---|---|
+| January through June | 16/31, 8/31, 4/31, 2/31, 1/31 |
+| July through December | 8/31, 12/31, 6/31, 3/31, 2/31 |
+
+This split by release month is separate from the month rule that assigns
+reports to observations. Reports released from March through June, and
+February reports that join a summer observation, form summer observations with
+January-through-June weights. The December 1995 report forms `1996a` with
+July-through-December weights. When several reports are combined within an
+observation, the outcome weights are the average of the combined reports'
+weights.
 
 **Regressor.** CBO's projected average annual change in the debt-to-GDP ratio
 over the same five years, as of the prior observation. The projected path is
@@ -80,9 +92,9 @@ means output below potential. Because the lag comes from the quarterly
 series, `2023b` receives the 2022 fourth-quarter value although there is no
 `2022b` observation.
 
-**Standard specification.** The regression summary also reports the paper's
-main specification, which replaces the projected debt-ratio change with the
-prior observation's projected five-year primary surplus. Because there is no
+**Projected-surplus specification.** The regression summary also reports the
+paper's main specification (`projected_surplus`), which replaces the projected
+debt-ratio change with the prior observation's projected five-year primary surplus. Because there is no
 `2022b` observation, `2023a` takes its projected surplus from the `2022a`
 report.
 
@@ -109,7 +121,7 @@ projected debt-ratio change and the lagged output gap over the benchmark era,
 with all three variables in percent of potential GDP. Standard errors are
 heteroskedasticity-consistent (HC1). On the February 2026 vintage the
 coefficient on the projected debt-ratio change is 0.1763 (standard error
-0.0401) with an R-squared of 0.478. The standard specification gives −0.1437
+0.0401) with an R-squared of 0.478. The projected-surplus specification gives −0.1437
 (0.0324) with an R-squared of 0.458.
 
 Every observation, including `2025b*`, receives a predicted deficit reduction

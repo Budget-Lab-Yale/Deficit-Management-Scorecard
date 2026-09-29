@@ -32,7 +32,7 @@ Download the new vintage of each file and place it under `inputs/`:
 |---|---|---|
 | `historical/Annual_FY_<Month><Year>.csv` | CBO budget and economic data, potential GDP (fiscal year) | Potential GDP scaling |
 | `historical/Quarterly_<Month><Year>.csv` | CBO budget and economic data, quarterly output gap | Output-gap control |
-| `cbo/51134-<year>-<mm>-Historical-Budget-Data.xlsx` | CBO historical budget data | Historical debt-to-GDP ratio, forward-table seed year |
+| `cbo/51134-<year>-<mm>-Historical-Budget-Data.xlsx` | CBO historical budget data | Historical debt and debt-to-GDP ratio, forward-table seed year |
 | `cbo/51119-<year>-<mm>-LTBO-Budget.xlsx` | CBO long-term budget outlook | Forward-table baseline |
 
 The potential-GDP series must extend at least four years past the new report
@@ -40,25 +40,37 @@ year; the pipeline stops with a message if it does not.
 
 ## 3. Update the configuration
 
-Two functions hold vintage-specific values and both must change:
+`scorecard_vintage()` in `R/build_inputs.R` holds every vintage-specific value:
+the label, the latest report year and half, and six input filenames (potential
+GDP, output gap, historical budget workbook, long-term outlook workbook, and
+the main and alternative revision files). The pipeline stops if the newest
+observation in the data does not match the configured year and half.
+`cbo_path_config()` in `R/cbo_paths.R` reads the two workbook filenames from
+`scorecard_vintage()` and takes the seed year, the last completed fiscal year
+before the projection, as the year before the latest report year. The forward
+table's ten years also follow from the latest report year, through
+`forward_table_years()` and `forward_table_windows()`. No other file names a
+vintage.
 
-- `scorecard_vintage()` in `R/build_inputs.R`: the label, latest report year
-  and half, and the five input filenames. The pipeline stops if the newest
-  observation in the data does not match the configured year and half.
-- `cbo_path_config()` in `R/cbo_paths.R`: the long-term outlook and historical
-  budget filenames and the seed year, which is the last completed fiscal year
-  before the projection.
+Three Excel ranges are hard-coded, and the historical-budget ranges gain a row
+each year:
 
-Three Excel ranges are hard-coded and grow by one row each year: the
-historical budget ranges `A9:H72` and `A9:H73` in `R/build_inputs.R` and
-`R/cbo_paths.R`, and the long-term outlook range `A9:P40` in `R/cbo_paths.R`.
+| File | Sheet | Range | Code |
+|---|---|---|---|
+| Historical budget | `1. Rev, Outlays, Surplus, Debt` | `A9:H73` | `read_historical_debt()` in `R/build_inputs.R`; `read_previous_year_budget()` in `R/cbo_paths.R` |
+| Historical budget | `1a. Rev, Outlays, Surplus (GDP)` | `A9:H73` | the same two functions |
+| Long-term outlook | `Supplemental Table 1` | `A9:P40` | `cbo_path_config()` in `R/cbo_paths.R` |
+
+Each range starts at the header row 9. The historical-budget ranges end at
+row 73, the row for the last completed fiscal year (2025 in the February 2026
+workbook), and the long-term outlook range ends at row 40, the row for 2056.
 Check the sheet layouts in the new workbooks, since CBO occasionally moves
 columns or renames headers.
 
 The highlighted observations are named explicitly in `R/scorecard.R`: the
 `group` labels in `prepare_scorecard_data()`, the period filter in
-`plot_scatter()`, and the label list in `plot_distribution_histogram()`. The alternative-series observation
-(`2025b*`) is also named there. Add the new observation to each list, and when
+`plot_scatter()`, and the label list in `plot_distribution_histogram()`. The
+alternative-series observation (`2025b*`) is also named there. Add the new observation to each list, and when
 an observation ages out of the highlighted set, extend `later_era_end` in
 `scorecard_periods()` so it joins the comparison era. The `test-scorecard.R`
 and `test-golden.R` label lists change with it.
@@ -86,10 +98,8 @@ confirm that the benchmark coefficient and the historical observations moved
 only as much as the revised CBO history explains, and then replace the pinned
 values. Record the vintage and its headline numbers in `CHANGELOG.md`.
 
-## 6. Publish the charts
+## 6. Chart data
 
-The website charts are built from the pipeline's outputs by
-`post/charts/build_scorecard_chart_data.R` in the project folder alongside
-this repository. Run it after the pipeline, copy the resulting
-`trackers/deficit-management-scorecard/` folder into the
-`budget-lab-charts` repository, and open a pull request there.
+The pipeline writes the data behind the website charts to `output/chart_data/`
+(`scorecard_scatter.csv`, `deviation_distribution.csv`, and
+`required_deficit_reduction.csv`).

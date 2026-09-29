@@ -1,7 +1,8 @@
 # Single source of truth for the current CBO vintage. Update these fields
-# together each release (typically February and August). Filenames are paths
-# relative to the input directory; latest_report_year/_half identify
-# the newest CBO report so the pipeline can assert that data and config agree.
+# together for each release, winter or summer. Filenames are paths relative to
+# the input directory, except the revision files, which are relative to its cbo
+# subdirectory. latest_report_year and latest_report_half identify the newest
+# CBO report so the pipeline can assert that data and config agree.
 scorecard_vintage <- function() {
   list(
     label = "February 2026",
@@ -487,7 +488,7 @@ build_merged_budget_data <- function(leg_full, baseline_def, historical, pgdp) {
   merged
 }
 
-build_dataset_for_regression <- function(merged_budget) {
+build_regression_data <- function(merged_budget) {
   dataset <- merged_budget |>
     dplyr::filter(.data$year >= 1983L) |>
     dplyr::mutate(
@@ -553,7 +554,7 @@ build_all_datasets <- function(input_dir) {
     complete <- read_cbo_revision_data(input_dir, filename)
     leg <- build_leg_regression_data(complete, pgdp, outgap)
     merged <- build_merged_budget_data(leg$full, leg$baseline_def, historical, pgdp)
-    build_dataset_for_regression(merged)
+    build_regression_data(merged)
   }
 
   datasets <- list(
@@ -561,9 +562,10 @@ build_all_datasets <- function(input_dir) {
     alternative = build_one(vintage$revision_alt_csv)
   )
 
-  # Tripwire: the newest period in the data must match the configured vintage.
-  # Catches both a stale/truncated read (data behind config) and an appended CBO
-  # release that nobody recorded in scorecard_vintage() (data ahead of config).
+  # The newest period in the data must match the configured vintage. A mismatch
+  # means either the read was truncated (data behind config) or a release was
+  # appended to the revision files without updating scorecard_vintage() (data
+  # ahead of config).
   data_latest <- max(datasets$main$periodid, na.rm = TRUE)
   expected_latest <- scorecard_latest_periodid(vintage)
   if (data_latest != expected_latest) {
